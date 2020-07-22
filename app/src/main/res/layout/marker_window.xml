@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/bonuspack_bubble">
+
+    <ImageView android:id="@+id/bubble_image"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:contentDescription="@string/label_empty" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@android:color/transparent">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="@android:color/transparent">
+
+            <TextView android:id="@+id/bubble_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@android:color/black"
+                android:background="@android:color/transparent"
+                android:maxEms="17"
+                android:layout_gravity="start"
+                android:layout_weight="1"
+                android:text="@string/label_title" />
+
+            <Button android:id="@+id/bubble_moreinfo"
+                android:background="@drawable/btn_moreinfo"
+                android:visibility="gone"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_gravity="end"
+                android:layout_weight="0" />
+
+        </LinearLayout>
+
+        <TextView android:id="@+id/bubble_description"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:textColor="@android:color/black"
+            android:text=""
+            android:visibility="gone"/>
+
+        <TextView android:id="@+id/bubble_subdescription"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:textColor="@android:color/black"
+            android:text=""
+            android:visibility="gone" />
+
+    </LinearLayout>
+</LinearLayout>
