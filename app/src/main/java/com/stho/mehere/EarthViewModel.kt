@@ -36,6 +36,9 @@ class EarthViewModel(application: Application) : AndroidViewModel(application) {
     internal val canZoomOutLD: LiveData<Boolean>
         get() = Transformations.map(zoomLevelLiveData) { zoomLevel -> zoomLevel > minZoomLevel }
 
+    internal val location: Location
+        get() = locationLiveData.value ?: defaultLocationBerlinBuch
+
     init {
         locationLiveData.value = defaultLocationBerlinBuch
         northPointerLiveData.value = 30.0
@@ -70,9 +73,22 @@ class EarthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateNorthPointer() {
+    internal fun setZoomLevel(zoomLevel: Double) {
+        if (zoomLevelLiveData.value != zoomLevel) {
+            zoomLevelLiveData.value = zoomLevel
+        }
+    }
+
+    internal fun updateNorthPointer() {
         northPointerLiveData.postValue(acceleration.position)
     }
+
+    internal fun reset() {
+        zoomLevelLiveData.value = defaultZoomLevel
+    }
+
+    internal val home: Location
+        get() = defaultLocationBerlinBuch
 
     companion object {
         internal val defaultLocationBerlinBuch: Location

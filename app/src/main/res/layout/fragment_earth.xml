@@ -38,17 +38,8 @@
         android:src="@drawable/plus_pressable"
         android:layout_margin="@dimen/fab_margin"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:contentDescription="@string/label_empty" />
-
-    <ImageView
-        android:id="@+id/buttonZoomOut"
-        android:layout_width="@dimen/button_size"
-        android:layout_height="@dimen/button_size"
-        android:src="@drawable/minus_pressable"
-        android:layout_margin="@dimen/fab_margin"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/buttonCenter"
         android:contentDescription="@string/label_empty" />
 
     <ImageView
@@ -58,8 +49,31 @@
         android:src="@drawable/focus_pressable"
         android:layout_margin="@dimen/fab_margin"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintStart_toEndOf="@id/buttonZoomIn"
+        app:layout_constraintEnd_toStartOf="@id/buttonTarget"
+        android:contentDescription="@string/label_empty" />
+
+    <ImageView
+        android:id="@+id/buttonTarget"
+        android:layout_width="@dimen/button_size"
+        android:layout_height="@dimen/button_size"
+        android:src="@drawable/target_pressable"
+        android:layout_margin="@dimen/fab_margin"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@id/buttonCenter"
+        app:layout_constraintEnd_toStartOf="@id/buttonZoomOut"
+        android:contentDescription="@string/label_empty" />
+
+    <ImageView
+        android:id="@+id/buttonZoomOut"
+        android:layout_width="@dimen/button_size"
+        android:layout_height="@dimen/button_size"
+        android:src="@drawable/minus_pressable"
+        android:layout_margin="@dimen/fab_margin"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@id/buttonTarget"
         app:layout_constraintEnd_toEndOf="parent"
         android:contentDescription="@string/label_empty" />
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

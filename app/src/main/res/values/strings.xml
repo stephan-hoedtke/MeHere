@@ -1,8 +1,28 @@
 <resources>
     <string name="app_name">Me Here</string>
     <string name="action_settings">Settings</string>
-    <string name="first_fragment_label">Earth Fragment</string>
+    <string name="action_reset">Reset</string>
     <string name="title_earth_fragment">Hello There</string>
     <string name="label_empty" />
+    <string name="label_earth_fragment">Earth Fragment</string>
     <string name="label_title">Title</string>
+    <string name="label_zoom_level_with_parameter">Zoom: %1$.0f</string>
+    <string name="label_location_with_parameters">%1$.3f°, %2$.3f°, %3$.0fm</string>
+
+    <!-- Home Preferences -->
+    <string name="home_header">Home</string>
+    <string name="home_latitude_title">Latitude</string>
+    <string name="home_longitude_title">Longitude</string>
+
+    <!-- Location Preferences -->
+    <string name="location_header">Location</string>
+    <string name="orientation_sensor_title">Device Orientation</string>
+    <string name="orientation_sensor_summary_on">Use magnetic field sensor to show device orientation</string>
+    <string name="orientation_sensor_summary_off">Do not use magnetic field sensor</string>
+    <string name="location_service_title">Your Location</string>
+    <string name="location_service_summary_on">Use location service to show your current location</string>
+    <string name="location_service_summary_off">Do not use location service</string>
+    <string name="location_tracking_title">Tracking</string>
+    <string name="location_tracking_summary_on">Automatically update map position</string>
+    <string name="location_tracking_summary_off">Do not update map position automatically</string>
 </resources>

@@ -3,11 +3,19 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/FirstFragment">
+    app:startDestination="@id/EarthFragment">
 
     <fragment
-        android:id="@+id/FirstFragment"
+        android:id="@+id/EarthFragment"
         android:name="com.stho.mehere.EarthFragment"
-        android:label="@string/first_fragment_label"
+        android:label="@string/label_earth_fragment"
         tools:layout="@layout/fragment_earth"/>
+
+    <fragment
+        android:id="@+id/SettingsFragment"
+        android:name="com.stho.mehere.SettingsFragment"
+        android:label="Settings Fragment" />
+
+    <action android:id="@+id/action_global_SettingsFragment" app:destination="@id/SettingsFragment"/>
+
 </navigation>
