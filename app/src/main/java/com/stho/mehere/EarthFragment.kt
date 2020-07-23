@@ -52,6 +52,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
     lateinit private var viewModel: EarthViewModel
     lateinit private var locationManager: LocationManager
     lateinit private var sensorManager: SensorManager
+    lateinit private var settings: Settings
 
     private var locationMarker: Marker? = null
     private var homeMarker: Marker? = null
@@ -62,15 +63,12 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
     private val rotationMatrix = FloatArray(9)
     private val orientationAngles = FloatArray(3)
 
-    private var useOrientation: Boolean = true
-    private var useLocation: Boolean = true
-    private var useTracking: Boolean = true
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         viewModel = ViewModelProvider(this).get(EarthViewModel::class.java)
         locationManager = requireContext().getSystemService(Context.LOCATION_SERVICE) as LocationManager
         sensorManager = context?.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        settings = Settings(requireContext())
         Configuration.getInstance().load(requireContext(), PreferenceManager.getDefaultSharedPreferences(requireContext().applicationContext))
         createMapView()
         requestMissingPermissions()
@@ -105,17 +103,17 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
 
     override fun onResume() {
         super.onResume()
-        retrieveOptionsFromSettings()
+        retrieveSettings()
         initializeHandler()
 
         createMapView()
         setHomeMarker(viewModel.home)
         setCenter(viewModel.home)
 
-        if (useLocation) {
+        if (settings.useLocation) {
             enableLocationListener()
         }
-        if (useOrientation) {
+        if (settings.useOrientation) {
             initializeAccelerationSensor()
             initializeMagneticFieldSensor()
         }
@@ -283,7 +281,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         setLocationMarker(location)
         setActionBarSubtitle(location)
 
-        if (useTracking) {
+        if (settings.useTracking) {
             setCenter(location)
         }
     }
@@ -303,7 +301,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
                 locationMarker = Marker(map).also {
                     it.icon = ContextCompat.getDrawable(requireActivity(), R.drawable.target128);
                     it.position = GeoPoint(location.latitude, location.longitude)
-                    it.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    it.setAnchor(0.17f, 0.17f) // TODO: this should be wrong, why does it display correctly on the emulator?
                     it.title = "Me"
                     it.subDescription = "Your current location"
                     it.infoWindow = BasicInfoWindow(R.layout.marker_window, map)
@@ -362,12 +360,8 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         return true
     }
 
-    private fun retrieveOptionsFromSettings() {
-        PreferenceManager.getDefaultSharedPreferences(requireContext().applicationContext).let {
-            this.useTracking = it.getBoolean("tracking", true)
-            this.useLocation = it.getBoolean("location", true)
-            this.useOrientation = it.getBoolean("orientation", true)
-        }
+    private fun retrieveSettings() {
+        settings.update(requireContext())
     }
 
     private fun updateActionBar(title: String) {
