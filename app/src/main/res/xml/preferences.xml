@@ -4,12 +4,12 @@
     <PreferenceCategory app:title="@string/home_header">
 
         <EditTextPreference
-            app:key="latitude"
+            app:key="homeLatitude"
             app:title="@string/home_latitude_title"
             app:useSimpleSummaryProvider="true" />
 
         <EditTextPreference
-            app:key="longitude"
+            app:key="homeLongitude"
             app:title="@string/home_longitude_title"
             app:useSimpleSummaryProvider="true" />
 

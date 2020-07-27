@@ -7,7 +7,7 @@
     <string name="label_earth_fragment">Earth Fragment</string>
     <string name="label_title">Title</string>
     <string name="label_zoom_level_with_parameter">Zoom: %1$.0f</string>
-    <string name="label_location_with_parameters">%1$.3f°, %2$.3f°, %3$.0fm</string>
+    <string name="label_location_with_parameters">%1$.5f°, %2$.5f°, %3$.0fm</string>
 
     <!-- Home Preferences -->
     <string name="home_header">Home</string>

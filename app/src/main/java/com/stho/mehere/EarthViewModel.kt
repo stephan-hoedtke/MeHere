@@ -1,48 +1,59 @@
 package com.stho.mehere
 
 import android.app.Application
+import android.content.Context
 import android.location.Location
 import android.location.LocationManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Transformations
+import org.osmdroid.api.IGeoPoint
+import org.osmdroid.util.GeoPoint
 import kotlin.math.PI
 
-class EarthViewModel(application: Application) : AndroidViewModel(application) {
+class EarthViewModel(application: Application, private val repository: Repository) : AndroidViewModel(application) {
 
     private val acceleration: Acceleration = Acceleration()
     private val lowPassFilter: LowPassFilter = LowPassFilter()
 
-    private val locationLiveData = MutableLiveData<Location>()
     private val northPointerLiveData = MutableLiveData<Double>()
-    private val zoomLevelLiveData = MutableLiveData<Double>()
-
-    internal val maxZoomLevel: Double = 19.0
-    internal val minZoomLevel: Double = 2.0
 
     internal val locationLD: LiveData<Location>
-        get() = locationLiveData
+        get() = repository.currentLocationLD
+
+    internal val centerLD: LiveData<GeoPoint>
+        get() = repository.centerLD
+
+    internal val zoomLevelLD: LiveData<Double>
+        get() = repository.zoomLevelLD
 
     internal val northPointerLD: LiveData<Double>
         get() = northPointerLiveData
 
-    internal val zoomLevelLD: LiveData<Double>
-        get() = zoomLevelLiveData
-
     internal val canZoomInLD: LiveData<Boolean>
-        get() = Transformations.map(zoomLevelLiveData) { zoomLevel -> zoomLevel < maxZoomLevel }
+        get() = Transformations.map(zoomLevelLD) { zoomLevel -> zoomLevel < maxZoomLevel }
 
     internal val canZoomOutLD: LiveData<Boolean>
-        get() = Transformations.map(zoomLevelLiveData) { zoomLevel -> zoomLevel > minZoomLevel }
+        get() = Transformations.map(zoomLevelLD) { zoomLevel -> zoomLevel > minZoomLevel }
 
     internal val location: Location
-        get() = locationLiveData.value ?: defaultLocationBerlinBuch
+        get() = repository.currentLocation
+
+    internal val center: GeoPoint
+        get() = repository.center
+
+    private var lastScrollingEvenMillis: Long = 0
+
+    internal fun disableTracking() {
+        lastScrollingEvenMillis = System.currentTimeMillis() + 3000
+    }
+
+    internal val isTrackingEnabled: Boolean
+        get() = System.currentTimeMillis() > lastScrollingEvenMillis
 
     init {
-        locationLiveData.value = defaultLocationBerlinBuch
         northPointerLiveData.value = 30.0
-        zoomLevelLiveData.value = defaultZoomLevel
     }
 
     internal fun update(orientationAngles: FloatArray) {
@@ -56,49 +67,64 @@ class EarthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     internal fun update(location: Location) {
-        locationLiveData.postValue(location)
+        repository.currentLocation = location
+    }
+
+    internal fun setCenter(center: IGeoPoint) {
+        repository.center.also {
+            if (it.latitude != center.latitude || it.longitude != center.longitude) {
+                it.latitude = center.latitude
+                it.longitude = center.longitude
+                repository.center = it
+            }
+        }
+    }
+
+    internal fun setCenter(location: Location) {
+        repository.center = GeoPoint(location)
     }
 
     internal fun zoomIn() {
-        val newZoomLevel = (zoomLevelLiveData.value ?: defaultZoomLevel) + 1.0
+        val newZoomLevel = repository.zoomLevel + 1.0
         if (newZoomLevel <= maxZoomLevel) {
-            zoomLevelLiveData.value = newZoomLevel
+            repository.zoomLevel = newZoomLevel
         }
     }
 
     internal fun zoomOut() {
-        val newZoomLevel = (zoomLevelLiveData.value ?: defaultZoomLevel) - 1.0
+        val newZoomLevel = repository.zoomLevel - 1.0
         if (newZoomLevel >= minZoomLevel) {
-            zoomLevelLiveData.value = newZoomLevel
+            repository.zoomLevel = newZoomLevel
         }
     }
 
     internal fun setZoomLevel(zoomLevel: Double) {
-        if (zoomLevelLiveData.value != zoomLevel) {
-            zoomLevelLiveData.value = zoomLevel
-        }
+        repository.zoomLevel = zoomLevel
     }
 
     internal fun updateNorthPointer() {
-        northPointerLiveData.postValue(acceleration.position)
+        acceleration.position.also {
+            if (northPointerLiveData.value != it)
+                northPointerLiveData.postValue(it)
+        }
     }
 
     internal fun reset() {
-        zoomLevelLiveData.value = defaultZoomLevel
+        repository.zoomLevel = Repository.defaultZoomLevel
+        repository.currentLocation = Repository.defaultLocationBerlinBuch
+        northPointerLiveData.postValue(0.0)
     }
 
     internal val home: Location
-        get() = defaultLocationBerlinBuch
+        get() = Repository.defaultLocationBerlinBuch
+
+    internal fun save() {
+        repository.save(getApplication())
+    }
 
     companion object {
-        internal val defaultLocationBerlinBuch: Location
-            get() = Location(LocationManager.GPS_PROVIDER).apply {
-                latitude = 52.633497466
-                longitude = 13.492831362
-                altitude = 90.0 // in m above see  level
-            }
-
-        private val defaultZoomLevel: Double = 5.0
+        internal const val maxZoomLevel: Double = 19.0
+        internal const val minZoomLevel: Double = 2.0
 
         private fun rotateTo(from: Double, to: Double): Double {
             val difference: Double = getAngleDifference(from, to)
