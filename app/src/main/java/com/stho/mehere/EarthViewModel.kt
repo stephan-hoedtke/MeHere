@@ -1,9 +1,7 @@
 package com.stho.mehere
 
 import android.app.Application
-import android.content.Context
 import android.location.Location
-import android.location.LocationManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -12,12 +10,13 @@ import org.osmdroid.api.IGeoPoint
 import org.osmdroid.util.GeoPoint
 import kotlin.math.PI
 
-class EarthViewModel(application: Application, private val repository: Repository) : AndroidViewModel(application) {
+class EarthViewModel(application: Application, private val repository: Repository, private val settings: Settings) : AndroidViewModel(application) {
 
+    private var isTrackingEnabled = false
     private val acceleration: Acceleration = Acceleration()
     private val lowPassFilter: LowPassFilter = LowPassFilter()
-
     private val northPointerLiveData = MutableLiveData<Double>()
+    private val homeLiveData = MutableLiveData<Location>()
 
     internal val locationLD: LiveData<Location>
         get() = repository.currentLocationLD
@@ -37,23 +36,39 @@ class EarthViewModel(application: Application, private val repository: Repositor
     internal val canZoomOutLD: LiveData<Boolean>
         get() = Transformations.map(zoomLevelLD) { zoomLevel -> zoomLevel > minZoomLevel }
 
+    internal val homeLD: LiveData<Location>
+        get() = homeLiveData
+
     internal val location: Location
         get() = repository.currentLocation
+
+    internal val home: Location
+        get() = settings.home
 
     internal val center: GeoPoint
         get() = repository.center
 
-    private var lastScrollingEvenMillis: Long = 0
+    internal val useLocation: Boolean
+        get() = settings.useLocation
+
+    internal val useOrientation: Boolean
+        get() = settings.useOrientation
+
+    internal val useTracking: Boolean
+        get() = settings.useTracking && isTrackingEnabled
 
     internal fun disableTracking() {
-        lastScrollingEvenMillis = System.currentTimeMillis() + 3000
+        isTrackingEnabled = false
     }
 
-    internal val isTrackingEnabled: Boolean
-        get() = System.currentTimeMillis() > lastScrollingEvenMillis
+    internal fun enableTracking() {
+        isTrackingEnabled = true
+    }
 
     init {
         northPointerLiveData.value = 30.0
+        homeLiveData.value = settings.home
+        isTrackingEnabled = true
     }
 
     internal fun update(orientationAngles: FloatArray) {
@@ -66,11 +81,11 @@ class EarthViewModel(application: Application, private val repository: Repositor
         acceleration.update(angle)
     }
 
-    internal fun update(location: Location) {
+    internal fun updateCurrentLocation(location: Location) {
         repository.currentLocation = location
     }
 
-    internal fun setCenter(center: IGeoPoint) {
+    internal fun updateCenter(center: IGeoPoint) {
         repository.center.also {
             if (it.latitude != center.latitude || it.longitude != center.longitude) {
                 it.latitude = center.latitude
@@ -78,10 +93,6 @@ class EarthViewModel(application: Application, private val repository: Repositor
                 repository.center = it
             }
         }
-    }
-
-    internal fun setCenter(location: Location) {
-        repository.center = GeoPoint(location)
     }
 
     internal fun zoomIn() {
@@ -115,15 +126,24 @@ class EarthViewModel(application: Application, private val repository: Repositor
         northPointerLiveData.postValue(0.0)
     }
 
-    internal val home: Location
-        get() = Repository.defaultLocationBerlinBuch
+    internal fun setHome(point: IGeoPoint) {
+        settings.home.latitude = point.latitude
+        settings.home.longitude = point.longitude
+        settings.save(getApplication())
+        homeLiveData.postValue(settings.home)
+    }
+
+    internal fun loadSettings() {
+        settings.load(getApplication())
+    }
 
     internal fun save() {
         repository.save(getApplication())
+        settings.save(getApplication())
     }
 
     companion object {
-        internal const val maxZoomLevel: Double = 19.0
+        internal const val maxZoomLevel: Double = 21.0
         internal const val minZoomLevel: Double = 2.0
 
         private fun rotateTo(from: Double, to: Double): Double {

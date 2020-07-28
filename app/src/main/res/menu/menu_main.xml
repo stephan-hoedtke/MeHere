@@ -9,6 +9,13 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_home"
+        android:orderInCategory="150"
+        android:title="@string/action_home"
+        app:showAsAction="never"
+        />
+
+    <item
         android:id="@+id/action_reset"
         android:orderInCategory="200"
         android:title="@string/action_reset"

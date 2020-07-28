@@ -81,18 +81,18 @@ class Repository {
         private const val centerAltitudeKey = "center.altitude"
         private const val zoomLevelKey = "zoomLevel"
 
-        private const val defaultLatitude = 52.64511
-        private const val defaultLongitude = 13.49181
-        private const val defaultAltitude = 90.0
-
+        internal const val defaultLatitude = 52.64511
+        internal const val defaultLongitude = 13.49181
+        internal const val defaultAltitude = 90.0
         internal const val defaultZoomLevel = 13.0
 
-        internal val defaultLocationBerlinBuch: Location
-            get() = Location(LocationManager.GPS_PROVIDER).apply {
+        internal val defaultLocationBerlinBuch: Location by lazy {
+            Location(LocationManager.GPS_PROVIDER).apply {
                 latitude = defaultLatitude
                 longitude = defaultLongitude
                 altitude = defaultAltitude // in m above see  level
             }
+        }
 
         private var singleton: Repository? = null
         private var lockObject: Any = Any()

@@ -1,13 +1,16 @@
 <resources>
     <string name="app_name">Me Here</string>
-    <string name="action_settings">Settings</string>
-    <string name="action_reset">Reset</string>
     <string name="title_earth_fragment">Hello There</string>
     <string name="label_empty" />
     <string name="label_earth_fragment">Earth Fragment</string>
     <string name="label_title">Title</string>
     <string name="label_zoom_level_with_parameter">Zoom: %1$.0f</string>
     <string name="label_location_with_parameters">%1$.5f°, %2$.5f°, %3$.0fm</string>
+
+    <!-- Actions Menu -->
+    <string name="action_settings">Settings</string>
+    <string name="action_home">Define as Home</string>
+    <string name="action_reset">Reset Configuration</string>
 
     <!-- Home Preferences -->
     <string name="home_header">Home</string>

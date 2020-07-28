@@ -1,16 +1,19 @@
-<PreferenceScreen
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
 
     <PreferenceCategory app:title="@string/home_header">
 
         <EditTextPreference
             app:key="homeLatitude"
             app:title="@string/home_latitude_title"
+            android:inputType="number"
+            app:singleLineTitle="true"
             app:useSimpleSummaryProvider="true" />
 
         <EditTextPreference
             app:key="homeLongitude"
             app:title="@string/home_longitude_title"
+            android:inputType="number"
             app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>

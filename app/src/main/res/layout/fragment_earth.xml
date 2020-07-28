@@ -32,24 +32,24 @@
         android:rotation="45" />
 
     <ImageView
-        android:id="@+id/buttonZoomIn"
+        android:id="@+id/buttonZoomOut"
         android:layout_width="@dimen/button_size"
         android:layout_height="@dimen/button_size"
-        android:src="@drawable/plus_pressable"
+        android:src="@drawable/minus_pressable"
         android:layout_margin="@dimen/fab_margin"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/buttonCenter"
+        app:layout_constraintEnd_toStartOf="@id/buttonHome"
         android:contentDescription="@string/label_empty" />
 
     <ImageView
-        android:id="@+id/buttonCenter"
+        android:id="@+id/buttonHome"
         android:layout_width="@dimen/button_size"
         android:layout_height="@dimen/button_size"
-        android:src="@drawable/focus_pressable"
+        android:src="@drawable/home_pressable"
         android:layout_margin="@dimen/fab_margin"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@id/buttonZoomIn"
+        app:layout_constraintStart_toEndOf="@id/buttonZoomOut"
         app:layout_constraintEnd_toStartOf="@id/buttonTarget"
         android:contentDescription="@string/label_empty" />
 
@@ -60,15 +60,15 @@
         android:src="@drawable/target_pressable"
         android:layout_margin="@dimen/fab_margin"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@id/buttonCenter"
-        app:layout_constraintEnd_toStartOf="@id/buttonZoomOut"
+        app:layout_constraintStart_toEndOf="@id/buttonHome"
+        app:layout_constraintEnd_toStartOf="@id/buttonZoomIn"
         android:contentDescription="@string/label_empty" />
 
     <ImageView
-        android:id="@+id/buttonZoomOut"
+        android:id="@+id/buttonZoomIn"
         android:layout_width="@dimen/button_size"
         android:layout_height="@dimen/button_size"
-        android:src="@drawable/minus_pressable"
+        android:src="@drawable/plus_pressable"
         android:layout_margin="@dimen/fab_margin"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toEndOf="@id/buttonTarget"
