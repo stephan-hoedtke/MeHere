@@ -48,6 +48,9 @@ class EarthViewModel(application: Application, private val repository: Repositor
     internal val center: GeoPoint
         get() = repository.center
 
+    internal val zoom: Double
+        get() = repository.zoomLevel
+
     internal val useLocation: Boolean
         get() = settings.useLocation
 
@@ -85,11 +88,19 @@ class EarthViewModel(application: Application, private val repository: Repositor
         repository.currentLocation = location
     }
 
-    internal fun updateCenter(center: IGeoPoint) {
+    internal fun updateCenter(location: Location) {
+        updateCenter(location.latitude, location.longitude)
+    }
+
+    internal fun updateCenter(point: IGeoPoint) {
+        updateCenter(point.latitude, point.longitude)
+    }
+
+    private fun updateCenter(latitude: Double, longitude: Double) {
         repository.center.also {
-            if (it.latitude != center.latitude || it.longitude != center.longitude) {
-                it.latitude = center.latitude
-                it.longitude = center.longitude
+            if (it.latitude != latitude || it.longitude != longitude) {
+                it.latitude = latitude
+                it.longitude = longitude
                 repository.center = it
             }
         }
@@ -109,7 +120,7 @@ class EarthViewModel(application: Application, private val repository: Repositor
         }
     }
 
-    internal fun setZoomLevel(zoomLevel: Double) {
+    internal fun updateZoomLevel(zoomLevel: Double) {
         repository.zoomLevel = zoomLevel
     }
 
