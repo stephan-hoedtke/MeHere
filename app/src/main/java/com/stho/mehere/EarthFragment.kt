@@ -307,10 +307,6 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
 
     private fun onObserveCurrentLocation(position: Position) {
         setLocationMarker(position)
-
-        if (viewModel.useTracking) {
-            viewModel.updateCenter(position)
-        }
     }
 
     private fun onObserveHome(home: Position) {

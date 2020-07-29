@@ -5,7 +5,6 @@ import android.content.SharedPreferences
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.preference.PreferenceManager
-import org.osmdroid.util.GeoPoint
 
 class Repository {
 

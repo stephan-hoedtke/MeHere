@@ -7,7 +7,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Transformations
 import org.osmdroid.api.IGeoPoint
-import org.osmdroid.util.GeoPoint
 import kotlin.math.PI
 
 class EarthViewModel(application: Application, private val repository: Repository, private val settings: Settings) : AndroidViewModel(application) {
@@ -87,6 +86,9 @@ class EarthViewModel(application: Application, private val repository: Repositor
     internal fun updateCurrentLocation(location: Location) {
         if (repository.currentLocation.isSomewhereElse(location)) {
             repository.currentLocation = Position(location)
+            if (useTracking) {
+                updateCenter(Position(location))
+            }
         }
     }
 

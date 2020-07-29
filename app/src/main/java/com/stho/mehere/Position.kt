@@ -13,14 +13,14 @@ class Position internal constructor(val latitude: Double, val longitude: Double,
 
     internal fun toLocation(): Location {
         return Location(LocationManager.GPS_PROVIDER).also {
-            it.latitude = this.latitude
-            it.longitude = this.longitude
-            it.altitude = this.altitude
+            it.latitude = latitude
+            it.longitude = longitude
+            it.altitude = altitude
         }
     }
 
     internal fun toGeoPoint(): GeoPoint {
-        return GeoPoint(this.latitude, this.longitude, this.altitude)
+        return GeoPoint(latitude, longitude, altitude)
     }
 
     internal fun isSomewhereElse(position: Position): Boolean {
@@ -29,10 +29,6 @@ class Position internal constructor(val latitude: Double, val longitude: Double,
 
     internal fun isSomewhereElse(location: Location): Boolean {
         return isSomewhereElse(location.latitude, location.longitude, location.altitude)
-    }
-
-    internal fun isSomewhereElse(point: GeoPoint): Boolean {
-        return isSomewhereElse(point.latitude, point.longitude, point.altitude)
     }
 
     internal fun isSomewhereElse(point: IGeoPoint): Boolean {
