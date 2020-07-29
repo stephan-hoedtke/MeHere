@@ -16,40 +16,40 @@ class EarthViewModel(application: Application, private val repository: Repositor
     private val acceleration: Acceleration = Acceleration()
     private val lowPassFilter: LowPassFilter = LowPassFilter()
     private val northPointerLiveData = MutableLiveData<Double>()
-    private val homeLiveData = MutableLiveData<Location>()
+    private val homeLiveData = MutableLiveData<Position>()
 
-    internal val locationLD: LiveData<Location>
+    internal val locationLD: LiveData<Position>
         get() = repository.currentLocationLD
 
-    internal val centerLD: LiveData<GeoPoint>
+    internal val centerLD: LiveData<Position>
         get() = repository.centerLD
 
-    internal val zoomLevelLD: LiveData<Double>
-        get() = repository.zoomLevelLD
+    internal val zoomLD: LiveData<Double>
+        get() = repository.zoomLD
 
     internal val northPointerLD: LiveData<Double>
         get() = northPointerLiveData
 
     internal val canZoomInLD: LiveData<Boolean>
-        get() = Transformations.map(zoomLevelLD) { zoomLevel -> zoomLevel < maxZoomLevel }
+        get() = Transformations.map(zoomLD) { zoomLevel -> zoomLevel < maxZoom }
 
     internal val canZoomOutLD: LiveData<Boolean>
-        get() = Transformations.map(zoomLevelLD) { zoomLevel -> zoomLevel > minZoomLevel }
+        get() = Transformations.map(zoomLD) { zoomLevel -> zoomLevel > minZoom }
 
-    internal val homeLD: LiveData<Location>
+    internal val homeLD: LiveData<Position>
         get() = homeLiveData
 
-    internal val location: Location
+    internal val currentLocation: Position
         get() = repository.currentLocation
 
-    internal val home: Location
+    internal val home: Position
         get() = settings.home
 
-    internal val center: GeoPoint
+    internal val center: Position
         get() = repository.center
 
     internal val zoom: Double
-        get() = repository.zoomLevel
+        get() = repository.zoom
 
     internal val useLocation: Boolean
         get() = settings.useLocation
@@ -85,43 +85,39 @@ class EarthViewModel(application: Application, private val repository: Repositor
     }
 
     internal fun updateCurrentLocation(location: Location) {
-        repository.currentLocation = location
-    }
-
-    internal fun updateCenter(location: Location) {
-        updateCenter(location.latitude, location.longitude)
+        if (repository.currentLocation.isSomewhereElse(location)) {
+            repository.currentLocation = Position(location)
+        }
     }
 
     internal fun updateCenter(point: IGeoPoint) {
-        updateCenter(point.latitude, point.longitude)
+        if (repository.center.isSomewhereElse(point)) {
+            repository.center = Position(point.latitude, point.longitude, repository.center.altitude)
+        }
     }
 
-    private fun updateCenter(latitude: Double, longitude: Double) {
-        repository.center.also {
-            if (it.latitude != latitude || it.longitude != longitude) {
-                it.latitude = latitude
-                it.longitude = longitude
-                repository.center = it
-            }
+    internal fun updateCenter(position: Position) {
+        if (repository.center.isSomewhereElse(position)) {
+            repository.center = position
         }
     }
 
     internal fun zoomIn() {
-        val newZoomLevel = repository.zoomLevel + 1.0
-        if (newZoomLevel <= maxZoomLevel) {
-            repository.zoomLevel = newZoomLevel
+        val newZoom = repository.zoom + 1.0
+        if (newZoom <= maxZoom) {
+            repository.zoom = newZoom
         }
     }
 
     internal fun zoomOut() {
-        val newZoomLevel = repository.zoomLevel - 1.0
-        if (newZoomLevel >= minZoomLevel) {
-            repository.zoomLevel = newZoomLevel
+        val newZoom = repository.zoom - 1.0
+        if (newZoom >= minZoom) {
+            repository.zoom = newZoom
         }
     }
 
-    internal fun updateZoomLevel(zoomLevel: Double) {
-        repository.zoomLevel = zoomLevel
+    internal fun updateZoom(zoom: Double) {
+        repository.zoom = zoom
     }
 
     internal fun updateNorthPointer() {
@@ -132,16 +128,15 @@ class EarthViewModel(application: Application, private val repository: Repositor
     }
 
     internal fun reset() {
-        repository.zoomLevel = Repository.defaultZoomLevel
+        repository.zoom = Repository.defaultZoom
         repository.currentLocation = Repository.defaultLocationBerlinBuch
         northPointerLiveData.postValue(0.0)
     }
 
-    internal fun setHome(point: IGeoPoint) {
-        settings.home.latitude = point.latitude
-        settings.home.longitude = point.longitude
+    internal fun setHome(home: Position) {
+        settings.home = home
         settings.save(getApplication())
-        homeLiveData.postValue(settings.home)
+        homeLiveData.postValue(home)
     }
 
     internal fun loadSettings() {
@@ -154,8 +149,8 @@ class EarthViewModel(application: Application, private val repository: Repositor
     }
 
     companion object {
-        internal const val maxZoomLevel: Double = 21.0
-        internal const val minZoomLevel: Double = 2.0
+        internal const val maxZoom: Double = 21.0
+        internal const val minZoom: Double = 2.0
 
         private fun rotateTo(from: Double, to: Double): Double {
             val difference: Double = getAngleDifference(from, to)

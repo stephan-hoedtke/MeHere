@@ -17,8 +17,7 @@ class Settings(context: Context) {
     internal var useTracking: Boolean = true
         private set
 
-    internal var home: Location = Repository.defaultLocationBerlinBuch
-        private set
+    internal var home: Position = Repository.defaultLocationBerlinBuch
 
     init {
         load(context)
@@ -29,10 +28,11 @@ class Settings(context: Context) {
             useTracking = it.getBoolean(trackingKey, true)
             useLocation = it.getBoolean(locationKey, true)
             useOrientation = it.getBoolean(orientationKey, true)
-            home = Location(LocationManager.GPS_PROVIDER).also { location ->
-                location.latitude = it.getStringAsDouble(homeLatitudeKey, home.latitude)
-                location.longitude = it.getStringAsDouble(homeLongitudeKey, home.longitude)
-            }
+            home = Position(
+                latitude = it.getStringAsDouble(homeLatitudeKey, home.latitude),
+                longitude = it.getStringAsDouble(homeLongitudeKey, home.longitude),
+                altitude = home.altitude
+            )
         }
     }
 

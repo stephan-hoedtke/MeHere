@@ -20,7 +20,6 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
 import android.os.Handler
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
@@ -44,7 +43,6 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.infowindow.BasicInfoWindow
 
 
 /**
@@ -76,7 +74,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         return when (item.itemId) {
             R.id.action_settings -> openSettings()
             R.id.action_reset -> reset()
-            R.id.action_home -> home()
+            R.id.action_home -> centerAsHome()
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -94,15 +92,15 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
             viewModel.updateCenter(viewModel.home)
         }
         root.buttonTarget.setOnClickListener {
-            viewModel.updateCenter(viewModel.location)
+            viewModel.updateCenter(viewModel.currentLocation)
             viewModel.enableTracking()
         }
 
         viewModel.northPointerLD.observe(viewLifecycleOwner, Observer { angle -> onObserveRotation(angle) })
-        viewModel.locationLD.observe(viewLifecycleOwner, Observer { location -> onObserveLocation(location) })
+        viewModel.locationLD.observe(viewLifecycleOwner, Observer { location -> onObserveCurrentLocation(location) })
         viewModel.homeLD.observe(viewLifecycleOwner, Observer { location -> onObserveHome(location) })
         viewModel.centerLD.observe(viewLifecycleOwner, Observer { center -> onObserveCenter(center) })
-        viewModel.zoomLevelLD.observe(viewLifecycleOwner, Observer { zoomLevel -> onObserveZoomLevel(zoomLevel) })
+        viewModel.zoomLD.observe(viewLifecycleOwner, Observer { zoomLevel -> onObserveZoom(zoomLevel) })
         viewModel.canZoomInLD.observe(viewLifecycleOwner, Observer { canZoomIn -> root.buttonZoomIn.isEnabled = canZoomIn })
         viewModel.canZoomOutLD.observe(viewLifecycleOwner, Observer { canZoomOut -> root.buttonZoomOut.isEnabled = canZoomOut })
 
@@ -211,8 +209,8 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
     }
 
     private fun createMapView(map: MapView) {
-        map.minZoomLevel = EarthViewModel.minZoomLevel
-        map.maxZoomLevel = EarthViewModel.maxZoomLevel
+        map.minZoomLevel = EarthViewModel.minZoom
+        map.maxZoomLevel = EarthViewModel.maxZoom
         map.zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
         map.setMultiTouchControls(true)
         val tileSource: ITileSource = TileSourceFactory.DEFAULT_TILE_SOURCE
@@ -249,7 +247,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
 
             override fun onZoom(event: ZoomEvent): Boolean {
                 view?.also {
-                    viewModel.updateZoomLevel(it.map.zoomLevelDouble)
+                    viewModel.updateZoom(it.map.zoomLevelDouble)
                 }
                 return true
             }
@@ -307,35 +305,34 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         }
     }
 
-    private fun onObserveLocation(location: Location) {
-        setLocationMarker(location)
+    private fun onObserveCurrentLocation(position: Position) {
+        setLocationMarker(position)
 
         if (viewModel.useTracking) {
-            viewModel.updateCenter(location)
+            viewModel.updateCenter(position)
         }
     }
 
-    private fun onObserveHome(location: Location) {
-        setHomeMarker(location)
+    private fun onObserveHome(home: Position) {
+        setHomeMarker(home)
     }
 
-    private fun setActionBarSubtitle(center: GeoPoint) {
+    private fun setActionBarSubtitle(center: Position) {
         supportActionBar?.apply {
             subtitle = toDescription(center)
         }
     }
 
-    private fun setLocationMarker(location: Location) {
+    private fun setLocationMarker(position: Position) {
         view?.apply {
             var marker = findMarkerById(locationMarkerId)
             if (marker == null) {
                 marker = Marker(map).also {
                     // Hack:
-                    // OSMDroid version 6.1.3, file:
+                    // OSMDroid version 6.1.3
                     // in Marker.java
                     // at protected void drawAt(final Canvas pCanvas, final int pX, final int pY, final float pOrientation)
                     // the offset is calculated with icon.intrinsicWidth (scaled for screen density), while the image is drawn from the original icon.bitmap
-                    // this is the hack:
                     //      wanted offset := 0.5 * icon.bitmap.with
                     //      calculated offset := fx * icon.intrinsicWidth
                     //      --> fx = 0.5 * icon.bitmap.with / icon.intrinsicWidth
@@ -345,31 +342,31 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
                     it.id = locationMarkerId
                     it.icon = icon
                     it.title = "Me"
-                    it.position = GeoPoint(location.latitude, location.longitude)
-                    it.subDescription = toDescription(location)
+                    it.position = position.toGeoPoint()
+                    it.subDescription = toDescription(position)
                     it.setAnchor(fx, fy)
                 }
                 map.overlays.add(marker)
                 map.invalidate()
             } else {
                 marker.also {
-                    it.position.latitude = location.latitude
-                    it.position.longitude = location.longitude
-                    it.subDescription = toDescription(location)
+                    it.position.latitude = position.latitude
+                    it.position.longitude = position.longitude
+                    it.subDescription = toDescription(position)
                 }
                 map.invalidate()
             }
         }
     }
 
-    private fun setHomeMarker(home: Location) {
+    private fun setHomeMarker(home: Position) {
         view?.apply {
             var marker = findMarkerById(homeMarkerId)
             if (marker == null) {
                 marker = Marker(map).also {
                     it.id = homeMarkerId
                     it.title = "Home"
-                    it.position = GeoPoint(home.latitude, home.longitude)
+                    it.position = home.toGeoPoint()
                     it.subDescription = toDescription(home)
                     it.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                 }
@@ -380,10 +377,14 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
                     it.position.latitude = home.latitude
                     it.position.longitude = home.longitude
                     it.subDescription = toDescription(home)
-                 }
+                }
                 map.invalidate()
             }
         }
+    }
+
+    private fun toDescription(position: Position): String {
+        return String.format(resources.getString(R.string.label_location_with_parameters, position.latitude, position.longitude, position.altitude))
     }
 
     private fun toDescription(location: Location): String {
@@ -407,7 +408,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         return null
     }
 
-    private fun onObserveZoomLevel(zoomLevel: Double) {
+    private fun onObserveZoom(zoomLevel: Double) {
         view?.apply {
             if (map.zoomLevelDouble != zoomLevel) {
                 map.controller.setZoom(zoomLevel)
@@ -416,12 +417,8 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         }
     }
 
-    private fun onObserveCenter(center: GeoPoint) {
-        view?.apply {
-            if (map.mapCenter.latitude != center.latitude || map.mapCenter.longitude != center.longitude) {
-                map.controller.setCenter(center)
-            }
-        }
+    private fun onObserveCenter(center: Position) {
+        setCenter(center)
         setActionBarSubtitle(center)
     }
 
@@ -430,12 +427,22 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         return true
     }
 
+    private fun setCenter(center: Position) {
+        // Do not store a reference to a GeoPoint, as the referenced object may be changed
+        view?.apply {
+            if (center.isSomewhereElse(map.mapCenter)) {
+                map.controller.setCenter(center.toGeoPoint())
+            }
+        }
+    }
+
+
     private fun reset(): Boolean {
         viewModel.reset()
         return true
     }
 
-    private fun home(): Boolean {
+    private fun centerAsHome(): Boolean {
         viewModel.setHome(viewModel.center)
         return true
     }

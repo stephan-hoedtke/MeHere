@@ -2,8 +2,6 @@ package com.stho.mehere
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.location.Location
-import android.location.LocationManager
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.preference.PreferenceManager
@@ -11,42 +9,42 @@ import org.osmdroid.util.GeoPoint
 
 class Repository {
 
-    private val currentLocationLiveData = MutableLiveData<Location>()
-    private val centerLiveData = MutableLiveData<GeoPoint>()
-    private val zoomLevelLiveData = MutableLiveData<Double>()
+    private val currentLocationLiveData = MutableLiveData<Position>()
+    private val centerLiveData = MutableLiveData<Position>()
+    private val zoomLiveData = MutableLiveData<Double>()
 
     init {
         currentLocationLiveData.value = defaultLocationBerlinBuch
-        centerLiveData.value = GeoPoint(defaultLocationBerlinBuch)
-        zoomLevelLiveData.value = defaultZoomLevel
+        centerLiveData.value = defaultLocationBerlinBuch
+        zoomLiveData.value = defaultZoom
     }
 
-    internal val currentLocationLD: LiveData<Location>
+    internal val currentLocationLD: LiveData<Position>
         get() = currentLocationLiveData
 
-    internal var currentLocation: Location
+    internal var currentLocation: Position
         get() = currentLocationLiveData.value ?: defaultLocationBerlinBuch
         set(value) {
             currentLocationLiveData.postValue(value)
         }
 
-    internal val centerLD: LiveData<GeoPoint>
+    internal val centerLD: LiveData<Position>
         get() = centerLiveData
 
-    internal var center: GeoPoint
-        get() = centerLiveData.value ?: GeoPoint(defaultLocationBerlinBuch)
+    internal var center: Position
+        get() = centerLiveData.value ?: defaultLocationBerlinBuch
         set(value) {
             centerLiveData.postValue(value)
         }
 
-    internal val zoomLevelLD: LiveData<Double>
-        get() = zoomLevelLiveData
+    internal val zoomLD: LiveData<Double>
+        get() = zoomLiveData
 
-    internal var zoomLevel: Double
-        get() = zoomLevelLiveData.value ?: defaultZoomLevel
+    internal var zoom: Double
+        get() = zoomLiveData.value ?: defaultZoom
         set(value) {
-            if (zoomLevelLiveData.value != value) {
-                zoomLevelLiveData.postValue(value)
+            if (zoomLiveData.value != value) {
+                zoomLiveData.postValue(value)
             }
         }
 
@@ -55,9 +53,9 @@ class Repository {
             val latitude = it.getDouble(centerLatitudeKey, defaultLatitude)
             val longitude =  it.getDouble(centerLongitudeKey, defaultLongitude)
             val altitude = it.getDouble(centerAltitudeKey, defaultAltitude)
-            val zoomLevel =  it.getDouble(zoomLevelKey, defaultZoomLevel)
-            centerLiveData.value = GeoPoint(latitude, longitude, altitude)
-            zoomLevelLiveData.value = zoomLevel
+            val zoomLevel =  it.getDouble(zoomKey, defaultZoom)
+            centerLiveData.value = Position(latitude, longitude, altitude)
+            zoomLiveData.value = zoomLevel
         }
     }
 
@@ -68,8 +66,8 @@ class Repository {
             editor.putDouble(centerLongitudeKey, it.longitude)
             editor.putDouble(centerAltitudeKey, it.altitude)
         }
-        zoomLevelLiveData.value?.also {
-            editor.putDouble(zoomLevelKey, it)
+        zoomLiveData.value?.also {
+            editor.putDouble(zoomKey, it)
         }
         editor.apply()
     }
@@ -79,19 +77,15 @@ class Repository {
         private const val centerLatitudeKey = "center.latitude"
         private const val centerLongitudeKey = "center.longitude"
         private const val centerAltitudeKey = "center.altitude"
-        private const val zoomLevelKey = "zoomLevel"
+        private const val zoomKey = "zoom"
 
         internal const val defaultLatitude = 52.64511
         internal const val defaultLongitude = 13.49181
         internal const val defaultAltitude = 90.0
-        internal const val defaultZoomLevel = 13.0
+        internal const val defaultZoom = 13.0
 
-        internal val defaultLocationBerlinBuch: Location by lazy {
-            Location(LocationManager.GPS_PROVIDER).apply {
-                latitude = defaultLatitude
-                longitude = defaultLongitude
-                altitude = defaultAltitude // in m above see  level
-            }
+        internal val defaultLocationBerlinBuch: Position by lazy {
+            Position(defaultLatitude, defaultLongitude, defaultAltitude)
         }
 
         private var singleton: Repository? = null
@@ -108,7 +102,6 @@ class Repository {
                     singleton = Repository().also {
                         it.load(context)
                     }
-
                 }
                 return singleton!!
             }
