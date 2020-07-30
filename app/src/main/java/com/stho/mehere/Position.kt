@@ -9,7 +9,6 @@ import kotlin.math.abs
 class Position internal constructor(val latitude: Double, val longitude: Double, val altitude: Double) {
 
     constructor(location: Location) : this(location.latitude, location.longitude, location.altitude)
-    constructor(point: GeoPoint): this(point.latitude, point.longitude, point.altitude)
 
     internal fun toLocation(): Location {
         return Location(LocationManager.GPS_PROVIDER).also {
@@ -44,6 +43,6 @@ class Position internal constructor(val latitude: Double, val longitude: Double,
     }
 
     private fun isDifferent(a: Double, b: Double): Boolean {
-        return abs(a - b) > 0.00000001
+        return abs(a - b) > 0.0000000001
     }
 }

@@ -32,14 +32,12 @@ import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
 import kotlinx.android.synthetic.main.fragment_earth.view.*
-import org.osmdroid.api.IGeoPoint
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
 import org.osmdroid.events.ZoomEvent
 import org.osmdroid.tileprovider.tilesource.ITileSource
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
@@ -93,7 +91,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         }
         root.buttonTarget.setOnClickListener {
             viewModel.updateCenter(viewModel.currentLocation)
-            viewModel.enableTracking()
+            viewModel.enableTrackingDelayed()
         }
 
         viewModel.northPointerLD.observe(viewLifecycleOwner, Observer { angle -> onObserveRotation(angle) })
@@ -168,9 +166,9 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         handler.postDelayed(object : Runnable {
             override fun run() {
                 viewModel.updateNorthPointer()
-                handler.postDelayed(this, HANDLER_DELAY.toLong())
+                handler.postDelayed(this, 100)
             }
-        }, HANDLER_DELAY.toLong())
+        }, 100)
     }
 
     private fun removeHandler() {
@@ -238,7 +236,6 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
     private val mapListener by lazy {
         object : MapListener {
             override fun onScroll(event: ScrollEvent): Boolean {
-                viewModel.disableTracking()
                 view?.also {
                     viewModel.updateCenter(it.map.mapCenter)
                 }
@@ -319,6 +316,14 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         }
     }
 
+    private val targetIcon by lazy {
+        ContextCompat.getDrawable(requireActivity(), R.drawable.target128) as BitmapDrawable
+    }
+
+    private val targetHotIcon by lazy {
+        ContextCompat.getDrawable(requireActivity(), R.drawable.targethot128) as BitmapDrawable
+    }
+
     private fun setLocationMarker(position: Position) {
         view?.apply {
             var marker = findMarkerById(locationMarkerId)
@@ -349,6 +354,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
                     it.position.latitude = position.latitude
                     it.position.longitude = position.longitude
                     it.subDescription = toDescription(position)
+                    it.setThisIcon(if (viewModel.useTracking) targetHotIcon else targetIcon)
                 }
                 map.invalidate()
             }
@@ -381,18 +387,6 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
 
     private fun toDescription(position: Position): String {
         return String.format(resources.getString(R.string.label_location_with_parameters, position.latitude, position.longitude, position.altitude))
-    }
-
-    private fun toDescription(location: Location): String {
-        return String.format(resources.getString(R.string.label_location_with_parameters, location.latitude, location.longitude, location.altitude))
-    }
-
-    private fun toDescription(point: GeoPoint): String {
-        return String.format(resources.getString(R.string.label_location_with_parameters, point.latitude, point.longitude, point.altitude))
-    }
-
-    private fun toDescription(point: IGeoPoint): String {
-        return String.format(resources.getString(R.string.label_location_with_parameters, point.latitude, point.longitude, 0.0))
     }
 
     private fun findMarkerById(id: String): Marker? {
@@ -457,8 +451,13 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
 
     companion object {
         private const val REQUEST_PERMISSIONS_REQUEST_CODE = 1
-        private const val HANDLER_DELAY = 100
         private const val locationMarkerId = "location"
         private const val homeMarkerId = "home"
     }
 }
+
+private fun Marker.setThisIcon(icon: BitmapDrawable) {
+    if (this.icon != icon)
+        this.icon = icon
+}
+

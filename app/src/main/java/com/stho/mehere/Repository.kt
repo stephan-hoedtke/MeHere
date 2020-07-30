@@ -71,6 +71,10 @@ class Repository {
         editor.apply()
     }
 
+    internal fun touch() {
+        currentLocationLiveData.postValue(currentLocation)
+    }
+
     companion object {
 
         private const val centerLatitudeKey = "center.latitude"

@@ -2,6 +2,7 @@ package com.stho.mehere
 
 import android.app.Application
 import android.location.Location
+import android.os.Handler
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -59,12 +60,16 @@ class EarthViewModel(application: Application, private val repository: Repositor
     internal val useTracking: Boolean
         get() = settings.useTracking && isTrackingEnabled
 
-    internal fun disableTracking() {
-        isTrackingEnabled = false
+    internal fun enableTrackingDelayed() {
+        Handler().postDelayed({
+            isTrackingEnabled = true
+            repository.touch()
+        }, 1000)
     }
 
-    internal fun enableTracking() {
-        isTrackingEnabled = true
+    internal fun disableTracking() {
+        isTrackingEnabled = false
+        repository.touch()
     }
 
     init {
@@ -93,14 +98,16 @@ class EarthViewModel(application: Application, private val repository: Repositor
     }
 
     internal fun updateCenter(point: IGeoPoint) {
-        if (repository.center.isSomewhereElse(point)) {
-            repository.center = Position(point.latitude, point.longitude, repository.center.altitude)
-        }
+        updateCenter(Position(point.latitude, point.longitude, center.altitude))
     }
 
     internal fun updateCenter(position: Position) {
         if (repository.center.isSomewhereElse(position)) {
             repository.center = position
+
+            if (position.isSomewhereElse(repository.currentLocation)) {
+                disableTracking()
+            }
         }
     }
 
