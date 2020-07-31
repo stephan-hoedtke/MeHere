@@ -16,9 +16,21 @@
         />
 
     <item
-        android:id="@+id/action_reset"
+        android:id="@+id/action_orientation"
         android:orderInCategory="200"
+        android:title="@string/action_orientation"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_reset"
+        android:orderInCategory="250"
         android:title="@string/action_reset"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_about"
+        android:orderInCategory="300"
+        android:title="@string/action_about"
         app:showAsAction="never" />
 
 </menu>

@@ -8,39 +8,56 @@ import androidx.preference.PreferenceManager
 
 class Repository {
 
-    private val currentLocationLiveData = MutableLiveData<Position>()
-    private val centerLiveData = MutableLiveData<Position>()
+    internal class MyPosition(val currentLocation: Position, val center: Position) {
+
+        internal val isSomewhereElse
+            get() = currentLocation.isSomewhereElse(center)
+
+        internal fun isSomewhereElse(newLocation: Position, newCenter: Position): Boolean {
+            return currentLocation.isSomewhereElse(newLocation) || center.isSomewhereElse(newCenter)
+        }
+    }
+
+    private val locationLiveData = MutableLiveData<MyPosition>()
     private val zoomLiveData = MutableLiveData<Double>()
 
     init {
-        currentLocationLiveData.value = defaultLocationBerlinBuch
-        centerLiveData.value = defaultLocationBerlinBuch
+        locationLiveData.value = MyPosition(defaultLocationBerlinBuch, defaultLocationBerlinBuch)
         zoomLiveData.value = defaultZoom
     }
 
-    internal val currentLocationLD: LiveData<Position>
-        get() = currentLocationLiveData
+    internal val locationLD: LiveData<MyPosition>
+        get() = locationLiveData
 
-    internal var currentLocation: Position
-        get() = currentLocationLiveData.value ?: defaultLocationBerlinBuch
-        set(value) {
-            currentLocationLiveData.postValue(value)
+    internal val currentLocation: Position
+        get() = locationLiveData.value!!.currentLocation
+
+    internal val center: Position
+        get() = locationLiveData.value!!.center
+
+    internal fun setCurrentLocationMoveCenter(newCurrentLocation: Position) {
+        setLocation(newCurrentLocation, newCurrentLocation)
+    }
+
+    internal fun setCurrentLocationKeepCenter(newCurrentLocation: Position) {
+        setLocation(newCurrentLocation, center)
+    }
+
+    internal fun setCenterKeepCurrentLocation(newCenter: Position) {
+        setLocation(currentLocation, newCenter)
+    }
+
+    private fun setLocation(newCurrentLocation: Position, newCenter: Position) {
+        if (locationLiveData.value!!.isSomewhereElse(newCurrentLocation, newCenter)) {
+            locationLiveData.postValue(MyPosition(newCurrentLocation, newCenter))
         }
-
-    internal val centerLD: LiveData<Position>
-        get() = centerLiveData
-
-    internal var center: Position
-        get() = centerLiveData.value ?: defaultLocationBerlinBuch
-        set(value) {
-            centerLiveData.postValue(value)
-        }
+    }
 
     internal val zoomLD: LiveData<Double>
         get() = zoomLiveData
 
     internal var zoom: Double
-        get() = zoomLiveData.value ?: defaultZoom
+        get() = zoomLiveData.value!!
         set(value) {
             if (zoomLiveData.value != value) {
                 zoomLiveData.postValue(value)
@@ -53,26 +70,26 @@ class Repository {
             val longitude =  it.getDouble(centerLongitudeKey, defaultLongitude)
             val altitude = it.getDouble(centerAltitudeKey, defaultAltitude)
             val zoomLevel =  it.getDouble(zoomKey, defaultZoom)
-            centerLiveData.value = Position(latitude, longitude, altitude)
+            locationLiveData.value = MyPosition(currentLocation, center = Position(latitude, longitude, altitude))
             zoomLiveData.value = zoomLevel
         }
     }
 
     internal fun save(context: Context) {
         val editor = PreferenceManager.getDefaultSharedPreferences(context.applicationContext).edit()
-        centerLiveData.value?.also {
+        currentLocation.also {
             editor.putDouble(centerLatitudeKey, it.latitude)
             editor.putDouble(centerLongitudeKey, it.longitude)
             editor.putDouble(centerAltitudeKey, it.altitude)
         }
-        zoomLiveData.value?.also {
+        zoom.also {
             editor.putDouble(zoomKey, it)
         }
         editor.apply()
     }
 
     internal fun touch() {
-        currentLocationLiveData.postValue(currentLocation)
+        locationLiveData.postValue(MyPosition(currentLocation, center))
     }
 
     companion object {

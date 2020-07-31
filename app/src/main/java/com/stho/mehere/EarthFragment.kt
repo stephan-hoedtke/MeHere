@@ -8,8 +8,10 @@ package com.stho.mehere
 // https://developer.android.com/training/permissions/requesting
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -20,10 +22,8 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
 import android.os.Handler
-import android.view.LayoutInflater
-import android.view.MenuItem
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -31,6 +31,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.android.synthetic.main.fragment_earth.view.*
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapListener
@@ -41,6 +42,7 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import java.lang.StringBuilder
 
 
 /**
@@ -73,6 +75,8 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
             R.id.action_settings -> openSettings()
             R.id.action_reset -> reset()
             R.id.action_home -> centerAsHome()
+            R.id.action_orientation -> displayOrientation()
+            R.id.action_about -> displayAbout()
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -87,15 +91,14 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
             viewModel.zoomOut()
         }
         root.buttonHome.setOnClickListener {
-            viewModel.updateCenter(viewModel.home)
+            viewModel.updateCenterAndDisableTracking(viewModel.home)
         }
         root.buttonTarget.setOnClickListener {
-            viewModel.updateCenter(viewModel.currentLocation)
-            viewModel.enableTrackingDelayed()
+            viewModel.updateCenterToCurrentLocationAndEnableTracking()
         }
 
         viewModel.northPointerLD.observe(viewLifecycleOwner, Observer { angle -> onObserveRotation(angle) })
-        viewModel.locationLD.observe(viewLifecycleOwner, Observer { location -> onObserveCurrentLocation(location) })
+        viewModel.currentLocationLD.observe(viewLifecycleOwner, Observer { location -> onObserveCurrentLocation(location) })
         viewModel.homeLD.observe(viewLifecycleOwner, Observer { location -> onObserveHome(location) })
         viewModel.centerLD.observe(viewLifecycleOwner, Observer { center -> onObserveCenter(center) })
         viewModel.zoomLD.observe(viewLifecycleOwner, Observer { zoomLevel -> onObserveZoom(zoomLevel) })
@@ -104,6 +107,10 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
 
         createMapView(root.map, requireContext())
         updateActionBar(resources.getString(R.string.app_name))
+
+        if (viewModel.useTracking)
+            viewModel.updateCenterToCurrentLocationAndEnableTracking()
+
         return root
     }
 
@@ -223,6 +230,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         view?.apply {
             map.onResume()
             map.addMapListener(mapListener)
+            map.setOnTouchListener(touchListener)
         }
     }
 
@@ -247,6 +255,16 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
                     viewModel.updateZoom(it.map.zoomLevelDouble)
                 }
                 return true
+            }
+        }
+    }
+
+    private val touchListener by lazy {
+        object : View.OnTouchListener {
+            @SuppressLint("ClickableViewAccessibility")
+            override fun onTouch(v: View, event: MotionEvent): Boolean {
+                viewModel.disableTracking()
+                return false
             }
         }
     }
@@ -383,6 +401,37 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
                 map.invalidate()
             }
         }
+    }
+
+    private fun displayOrientation(): Boolean {
+        val message = StringBuilder()
+
+        message.append("Orientation: ")
+        message.append("\nO: " + orientationAngles[0])
+        message.append("\nM: " + magnetometerReading[0] + " | " + magnetometerReading[1] + " | " + magnetometerReading[2])
+
+        return displayMessage(message.toString())
+    }
+
+    private fun displayAbout(): Boolean {
+        val message: String = String.format(
+            resources.getString(R.string.label_about_with_parameters),
+            BuildConfig.VERSION_NAME
+        )
+        return displayMessage(message)
+    }
+
+    private fun displayMessage(message: String): Boolean {
+        Snackbar.make(requireView(), message, Snackbar.LENGTH_INDEFINITE).also {
+            it.setAction(R.string.label_close) { _ -> it.dismiss() }
+            it.setActionTextColor(Color.GRAY)
+            it.setTextColor(Color.YELLOW)
+            it.setBackgroundTint(Color.BLACK)
+            it.duration = 23000
+            it.view.findViewById<TextView>(com.google.android.material.R.id.snackbar_text).maxLines = 4
+            it.show()
+        }
+        return true
     }
 
     private fun toDescription(position: Position): String {
