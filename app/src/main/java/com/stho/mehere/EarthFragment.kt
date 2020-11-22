@@ -218,11 +218,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         map.maxZoomLevel = EarthViewModel.maxZoom
         map.zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
         map.setMultiTouchControls(true)
-        val tileSource: ITileSource = TileSourceFactory.DEFAULT_TILE_SOURCE
-        TileSourceFactory.addTileSource(tileSource)
-        //map.setTileSource(TileSourceFactory.MAPNIK);
-        map.setTileSource(tileSource)
-        map.tileProvider.createTileCache()
+        map.setTileSource(TileSourceFactory.DEFAULT_TILE_SOURCE)
         map.isFlingEnabled = true
     }
 
@@ -334,12 +330,12 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         }
     }
 
-    private val targetIcon by lazy {
-        ContextCompat.getDrawable(requireActivity(), R.drawable.target128) as BitmapDrawable
+    private val targetIconBlue by lazy {
+        ContextCompat.getDrawable(requireActivity(), R.drawable.target_blue) as BitmapDrawable
     }
 
-    private val targetHotIcon by lazy {
-        ContextCompat.getDrawable(requireActivity(), R.drawable.targethot128) as BitmapDrawable
+    private val targetIconRed by lazy {
+        ContextCompat.getDrawable(requireActivity(), R.drawable.target_red) as BitmapDrawable
     }
 
     private fun setLocationMarker(position: Position) {
@@ -355,7 +351,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
                     //      wanted offset := 0.5 * icon.bitmap.with
                     //      calculated offset := fx * icon.intrinsicWidth
                     //      --> fx = 0.5 * icon.bitmap.with / icon.intrinsicWidth
-                    val icon = ContextCompat.getDrawable(requireActivity(), R.drawable.target128) as BitmapDrawable
+                    val icon = targetIconBlue
                     val fx: Float = Marker.ANCHOR_CENTER * icon.bitmap.width / icon.intrinsicWidth
                     val fy: Float = Marker.ANCHOR_CENTER * icon.bitmap.height / icon.intrinsicHeight
                     it.id = locationMarkerId
@@ -372,7 +368,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
                     it.position.latitude = position.latitude
                     it.position.longitude = position.longitude
                     it.subDescription = toDescription(position)
-                    it.setThisIcon(if (viewModel.useTracking) targetHotIcon else targetIcon)
+                    it.setThisIcon(if (viewModel.useTracking) targetIconRed else targetIconBlue)
                 }
                 map.invalidate()
             }
