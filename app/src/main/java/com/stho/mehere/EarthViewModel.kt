@@ -8,7 +8,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Transformations
 import org.osmdroid.api.IGeoPoint
-import kotlin.math.PI
 
 class EarthViewModel(application: Application, private val repository: Repository, private val settings: Settings) : AndroidViewModel(application) {
 
@@ -87,12 +86,11 @@ class EarthViewModel(application: Application, private val repository: Repositor
 
     internal fun update(orientationAngles: FloatArray) {
         val gravity: Vector = lowPassFilter.setAcceleration(orientationAngles)
-        updateAcceleration(-180 * gravity.x / PI)
+        updateAcceleration(- Degree.fromRadian(gravity.x))
     }
 
     private fun updateAcceleration(newAngle: Double) {
-        val angle = rotateTo(acceleration.position, newAngle)
-        acceleration.update(angle)
+        acceleration.rotateTo(newAngle)
     }
 
     internal fun updateCurrentLocation(location: Location) {

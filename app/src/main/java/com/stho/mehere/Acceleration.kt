@@ -40,6 +40,31 @@ internal class Acceleration {
         calculateFormula()
     }
 
+    fun rotateTo(targetPosition: Double) {
+        val elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+        val t = getTime(elapsedRealtimeNanos)
+        val v = getSpeed(t)
+        val s = getPosition(t)
+        val alpha = Degree.getAngleDifference(targetPosition, s)
+        v0 = v
+        s0 = s
+        s1 = s + alpha
+        t0 = elapsedRealtimeNanos
+
+        when {
+            alpha > 0 && s1 > 360 -> {
+                s0 -= 360
+                s1 -= 360
+            }
+            alpha < 0 && s1 < 0 -> {
+                s0 += 360
+                s1 += 360
+            }
+        }
+
+        calculateFormula()
+    }
+
     private fun getTime(elapsedRealtimeNanos: Long): Double {
         val nanos = elapsedRealtimeNanos - t0
         return factor * nanos
