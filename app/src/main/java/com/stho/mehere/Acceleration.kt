@@ -28,7 +28,7 @@ internal class Acceleration {
             return getPosition(t)
         }
 
-    fun update(targetPosition: Double) {
+    fun updateLinearTo(targetPosition: Double) {
         val elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
         val t = getTime(elapsedRealtimeNanos)
         val v = getSpeed(t)

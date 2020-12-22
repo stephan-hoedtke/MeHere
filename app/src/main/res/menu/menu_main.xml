@@ -16,6 +16,14 @@
         />
 
     <item
+        android:id="@+id/action_setAlpha"
+        android:orderInCategory="170"
+        android:title="@string/action_set_alpha"
+        android:icon="@drawable/alpha"
+        app:showAsAction="ifRoom"
+        />
+
+    <item
         android:id="@+id/action_orientation"
         android:orderInCategory="200"
         android:title="@string/action_orientation"
