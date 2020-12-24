@@ -9,13 +9,23 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Transformations
 import org.osmdroid.api.IGeoPoint
 
+
 class EarthViewModel(application: Application, private val repository: Repository, private val settings: Settings) : AndroidViewModel(application) {
 
-    private var isTrackingEnabled = false
+    private var isTrackingEnabled = true
     private val acceleration: Acceleration = Acceleration()
     private val lowPassFilter: LowPassFilter = LowPassFilter()
     private val northPointerLiveData = MutableLiveData<Double>()
     private val homeLiveData = MutableLiveData<Position>()
+    private val networkStatusLiveData = MutableLiveData<NetworkStatus>()
+    private val alphaLiveData = MutableLiveData<Float>()
+
+    init {
+        networkStatusLiveData.value = NetworkStatus.OFFLINE
+        northPointerLiveData.value = 30.0
+        homeLiveData.value = settings.home
+        alphaLiveData.value = settings.alpha
+    }
 
     internal val locationLD: LiveData<Repository.MyPosition>
         get() = repository.locationLD
@@ -41,6 +51,12 @@ class EarthViewModel(application: Application, private val repository: Repositor
     internal val homeLD: LiveData<Position>
         get() = homeLiveData
 
+    internal val alphaLD: LiveData<Float>
+        get() = alphaLiveData
+
+    internal val networkStatusLD: LiveData<NetworkStatus>
+        get() = networkStatusLiveData
+
     internal val currentLocation: Position
         get() = repository.currentLocation
 
@@ -62,6 +78,13 @@ class EarthViewModel(application: Application, private val repository: Repositor
     internal val useTracking: Boolean
         get() = settings.useTracking && isTrackingEnabled
 
+    internal var alpha: Float
+        get() = alphaLiveData.value ?: 0.5f
+        set(value) {
+            alphaLiveData.postValue(value)
+            settings.alpha = value
+        }
+
     internal fun enableTrackingDelayed() {
         if (!isTrackingEnabled) {
             Handler().postDelayed({
@@ -78,15 +101,9 @@ class EarthViewModel(application: Application, private val repository: Repositor
         }
     }
 
-    init {
-        northPointerLiveData.value = 30.0
-        homeLiveData.value = settings.home
-        isTrackingEnabled = true
-    }
-
     internal fun update(orientationAngles: FloatArray) {
         val gravity: Vector = lowPassFilter.setAcceleration(orientationAngles)
-        updateAcceleration(- Degree.fromRadian(gravity.x))
+        updateAcceleration(-Degree.fromRadian(gravity.x))
     }
 
     private fun updateAcceleration(newAngle: Double) {
@@ -108,7 +125,13 @@ class EarthViewModel(application: Application, private val repository: Repositor
     }
 
     internal fun updateCenter(point: IGeoPoint) {
-        repository.setCenterKeepCurrentLocation(Position(point.latitude, point.longitude, center.altitude))
+        repository.setCenterKeepCurrentLocation(
+            Position(
+                point.latitude,
+                point.longitude,
+                center.altitude
+            )
+        )
     }
 
     internal fun updateCenterAndDisableTracking(newCenter: Position) {
@@ -167,20 +190,12 @@ class EarthViewModel(application: Application, private val repository: Repositor
         settings.save(getApplication())
     }
 
+    internal fun setNetworkStatus(status: NetworkStatus) {
+        networkStatusLiveData.postValue(status)
+    }
+
     companion object {
         internal const val maxZoom: Double = 21.0
         internal const val minZoom: Double = 2.0
-
-        private fun rotateTo(from: Double, to: Double): Double {
-            val difference: Double = getAngleDifference(from, to)
-            return from + difference
-        }
-
-        private fun getAngleDifference(from: Double, to: Double): Double {
-            var alpha = to - from
-            while (alpha > +180) alpha -= 360f
-            while (alpha < -180) alpha += 360f
-            return alpha
-        }
     }
 }

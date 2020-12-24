@@ -5,7 +5,7 @@
     <string name="label_earth_fragment">Earth Fragment</string>
     <string name="label_title">Title</string>
     <string name="label_zoom_level_with_parameter">Zoom: %1$.0f</string>
-    <string name="label_location_with_parameters">%1$.5f°, %2$.5f°, %3$.0fm</string>
+    <string name="label_location_with_parameters">%1$.3f° %2$.3f° %3$.0fm</string>
     <string name="label_about_with_parameters">Me Here, Version %1$s\nCopyright © STHO\n2020</string>
     <string name="label_close">Close</string>
 
@@ -32,5 +32,6 @@
     <string name="location_tracking_title">Tracking</string>
     <string name="location_tracking_summary_on">Automatically update map position</string>
     <string name="location_tracking_summary_off">Do not update map position automatically</string>
-    <string name="action_set_alpha">Set Transparency</string>
+    <string name="action_set_alpha">Transparency</string>
+    <string name="action_network">Network</string>
 </resources>

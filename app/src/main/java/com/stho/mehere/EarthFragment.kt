@@ -9,11 +9,13 @@ package com.stho.mehere
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Application
 import android.content.Context
 import android.content.DialogInterface
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -21,12 +23,15 @@ import android.hardware.SensorManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Bundle
 import android.os.Handler
 import android.view.*
 import android.widget.SeekBar
 import android.widget.SeekBar.OnSeekBarChangeListener
 import android.widget.TextView
+import android.widget.Toolbar
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -53,6 +58,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
     private lateinit var viewModel: EarthViewModel
     private lateinit var sensorManager: SensorManager
     private lateinit var locationManager: LocationManager
+    private lateinit var connectivityManager: ConnectivityManager
     private var bindingReference: FragmentEarthBinding? = null
     private val binding: FragmentEarthBinding get() = bindingReference!!
 
@@ -68,6 +74,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         viewModel = createEarthViewModel()
         sensorManager = requireContext().getSystemService(Context.SENSOR_SERVICE) as SensorManager
         locationManager = requireContext().getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        connectivityManager = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         requestMissingPermissions()
         setHasOptionsMenu(true)
     }
@@ -80,6 +87,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
             R.id.action_orientation -> displayOrientation()
             R.id.action_about -> displayAbout()
             R.id.action_setAlpha -> setAlpha()
+            R.id.action_networkStatus -> displayNetworkStatus()
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -97,8 +105,10 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         viewModel.homeLD.observe(viewLifecycleOwner, { location -> onObserveHome(location) })
         viewModel.centerLD.observe(viewLifecycleOwner, { center -> onObserveCenter(center) })
         viewModel.zoomLD.observe(viewLifecycleOwner, { zoomLevel -> onObserveZoom(zoomLevel) })
+        viewModel.alphaLD.observe(viewLifecycleOwner, { alpha -> binding.compass.alpha = alpha })
         viewModel.canZoomInLD.observe(viewLifecycleOwner, { canZoomIn -> binding.buttonZoomIn.isEnabled = canZoomIn })
         viewModel.canZoomOutLD.observe(viewLifecycleOwner, { canZoomOut -> binding.buttonZoomOut.isEnabled = canZoomOut })
+        viewModel.networkStatusLD.observe(viewLifecycleOwner, { status -> onNetworkStatus(status) })
 
         createMapView(binding.map, requireContext())
         updateActionBar(resources.getString(R.string.app_name))
@@ -118,8 +128,10 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         super.onResume()
         viewModel.loadSettings()
 
+        initializeNetworkListener()
         initializeHandler()
         resumeMapView()
+
 
         if (viewModel.useLocation) {
             enableLocationListener()
@@ -134,18 +146,11 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         super.onPause()
         viewModel.save()
         disableLocationListener()
+        disableNetworkListener()
         removeSensorListeners()
         removeHandler()
         pauseMapView()
     }
-
-    private var alpha: Float
-        get() {
-            return binding.compass.alpha
-        }
-        set(value) {
-            binding.compass.setAlpha(value)
-        }
 
     private fun alphaToInt(f: Float): Int =
         (255 * f + 0.5).toInt()
@@ -158,16 +163,18 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         val seek = SeekBar(requireContext())
         seek.max = 255
         seek.keyProgressIncrement = 1
-        seek.progress = alphaToInt(alpha)
+        seek.progress = alphaToInt(viewModel.alpha)
 
-        // dialog.setIcon(R.drawable.alpha);
-        dialog.setTitle("Compass Transparency")
+        // TODO: set alert dialog theme: https://stackoverflow.com/questions/18346920/change-the-background-color-of-a-pop-up-dialog#
+
+        dialog.setIcon(R.drawable.alpha_gray);
+        dialog.setTitle("Transparency")
         dialog.setView(seek)
 
         seek.setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
 
-                alpha = if (progress <= 20) {
+                viewModel.alpha = if (progress <= 20) {
                     intToAlpha(20)
                 } else  {
                     intToAlpha(progress)
@@ -245,6 +252,59 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
 
     private fun removeSensorListeners() {
         sensorManager.unregisterListener(this)
+    }
+
+    private val networkStatusCallback:  ConnectivityManager.NetworkCallback by lazy {
+        object: ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                super.onAvailable(network)
+                viewModel.setNetworkStatus(NetworkStatus.ONLINE)
+            }
+
+            override fun onLost(network: Network) {
+                super.onLost(network)
+                viewModel.setNetworkStatus(NetworkStatus.OFFLINE)
+            }
+
+            override fun onUnavailable() {
+                super.onUnavailable()
+                viewModel.setNetworkStatus(NetworkStatus.OFFLINE)
+            }
+        }
+    }
+
+    private val toolbar: androidx.appcompat.widget.Toolbar
+        get() = requireActivity().findViewById(R.id.toolbar)
+
+    private fun networkStatusIconId(status: NetworkStatus): Int =
+        when (status) {
+            NetworkStatus.ACTIVE -> R.drawable.online
+            NetworkStatus.ONLINE -> R.drawable.online
+            NetworkStatus.OFFLINE -> R.drawable.offline
+        }
+
+    private fun onNetworkStatus(status: NetworkStatus) {
+        toolbar.menu.findItem(R.id.action_networkStatus)?.icon = ContextCompat.getDrawable(requireContext(), networkStatusIconId(status))
+    }
+
+    private fun displayNetworkStatus(): Boolean {
+        viewModel.networkStatusLD.value?.also {
+            val message = when (it) {
+                NetworkStatus.ACTIVE -> "Active"
+                NetworkStatus.ONLINE -> "Online"
+                NetworkStatus.OFFLINE -> "Offline"
+            }
+            showSnackbar(message)
+        }
+        return true
+    }
+
+    private fun initializeNetworkListener() {
+        connectivityManager.registerDefaultNetworkCallback(networkStatusCallback)
+    }
+
+    private fun disableNetworkListener() {
+        connectivityManager.unregisterNetworkCallback(networkStatusCallback)
     }
 
     private fun requestMissingPermissions() {
@@ -487,12 +547,23 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         return displayMessage(message)
     }
 
+    private fun getColor(resId: Int): Int =
+        ContextCompat.getColor(requireContext(), resId)
+
+    private fun showSnackbar(message: String) {
+        Snackbar.make(requireView(), message, Snackbar.LENGTH_LONG)
+            .setBackgroundTint(getColor(R.color.colorAccent))
+            .setTextColor(getColor(android.R.color.white))
+            .show()
+    }
+
+
     private fun displayMessage(message: String): Boolean {
         Snackbar.make(requireView(), message, Snackbar.LENGTH_INDEFINITE).also {
             it.setAction(R.string.label_close) { _ -> it.dismiss() }
-            it.setActionTextColor(Color.GRAY)
-            it.setTextColor(Color.YELLOW)
-            it.setBackgroundTint(Color.BLACK)
+            it.setBackgroundTint(getColor(R.color.colorAccent))
+            it.setTextColor(getColor(android.R.color.white))
+            it.setActionTextColor(getColor(R.color.colorPrimaryDark))
             it.duration = 23000
             it.view.findViewById<TextView>(com.google.android.material.R.id.snackbar_text).maxLines = 4
             it.show()
@@ -500,16 +571,13 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         return true
     }
 
-    private fun toDescription(position: Position): String {
-        return String.format(
-            resources.getString(
+    private fun toDescription(position: Position): String =
+        resources.getString(
                 R.string.label_location_with_parameters,
                 position.latitude,
                 position.longitude,
                 position.altitude
             )
-        )
-    }
 
     private fun findMarkerById(id: String): Marker? {
         binding.map.overlays?.forEach {

@@ -19,6 +19,8 @@ class Settings(context: Context) {
 
     internal var home: Position = Repository.defaultLocationBerlinBuch
 
+    internal var alpha: Float = 0.5f
+
     init {
         load(context)
     }
@@ -33,6 +35,7 @@ class Settings(context: Context) {
                 longitude = it.getStringAsDouble(homeLongitudeKey, home.longitude),
                 altitude = home.altitude
             )
+            alpha = it.getFloat(alphaKey, 0.5f)
         }
     }
 
@@ -43,6 +46,7 @@ class Settings(context: Context) {
         editor.putBoolean(orientationKey, useOrientation)
         editor.putString(homeLatitudeKey, home.latitude.toString())
         editor.putString(homeLongitudeKey, home.longitude.toString())
+        editor.putFloat(alphaKey, alpha)
         editor.apply()
     }
 
@@ -53,9 +57,8 @@ class Settings(context: Context) {
         private const val orientationKey = "orientation"
         private const val homeLatitudeKey = "homeLatitude"
         private const val homeLongitudeKey = "homeLongitude"
+        private const val alphaKey = "alpha"
     }
-
-
 }
 
 private fun SharedPreferences.getStringAsDouble(key: String, defaultValue: Double): Double {
