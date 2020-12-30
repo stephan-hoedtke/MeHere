@@ -2,12 +2,16 @@ package com.stho.mehere
 
 import android.app.Application
 import android.location.Location
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Handler
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Transformations
 import org.osmdroid.api.IGeoPoint
+import java.lang.StringBuilder
 
 
 class EarthViewModel(application: Application, private val repository: Repository, private val settings: Settings) : AndroidViewModel(application) {
@@ -17,11 +21,11 @@ class EarthViewModel(application: Application, private val repository: Repositor
     private val lowPassFilter: LowPassFilter = LowPassFilter()
     private val northPointerLiveData = MutableLiveData<Double>()
     private val homeLiveData = MutableLiveData<Position>()
-    private val networkStatusLiveData = MutableLiveData<NetworkStatus>()
+    private val networkStatusLiveData = MutableLiveData<NetworkStatusInfo>()
     private val alphaLiveData = MutableLiveData<Float>()
 
     init {
-        networkStatusLiveData.value = NetworkStatus.OFFLINE
+        networkStatusLiveData.value = NetworkStatusInfo()
         northPointerLiveData.value = 30.0
         homeLiveData.value = settings.home
         alphaLiveData.value = settings.alpha
@@ -54,7 +58,7 @@ class EarthViewModel(application: Application, private val repository: Repositor
     internal val alphaLD: LiveData<Float>
         get() = alphaLiveData
 
-    internal val networkStatusLD: LiveData<NetworkStatus>
+    internal val networkStatusLD: LiveData<NetworkStatusInfo>
         get() = networkStatusLiveData
 
     internal val currentLocation: Position
@@ -190,8 +194,29 @@ class EarthViewModel(application: Application, private val repository: Repositor
         settings.save(getApplication())
     }
 
-    internal fun setNetworkStatus(status: NetworkStatus) {
-        networkStatusLiveData.postValue(status)
+    internal val networkStatus: NetworkStatusInfo
+        get() = networkStatusLiveData.value ?: NetworkStatusInfo()
+
+    internal fun setNetworkAvailable(connectivityManager: ConnectivityManager, network: Network) {
+        networkStatus.also {
+            it.setAvailable(connectivityManager, network)
+            networkStatusLiveData.postValue(it)
+        }
+    }
+
+    internal fun setNetworkLost(network: Network) {
+        networkStatus.also {
+            it.setLost(network)
+            networkStatusLiveData.postValue(it)
+        }
+    }
+
+
+    internal fun setNetworkUnavailable() {
+        networkStatus.also {
+            it.setUnavailable()
+            networkStatusLiveData.postValue(it)
+        }
     }
 
     companion object {

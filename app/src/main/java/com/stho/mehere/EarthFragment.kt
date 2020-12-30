@@ -9,13 +9,10 @@ package com.stho.mehere
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Application
 import android.content.Context
 import android.content.DialogInterface
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -31,7 +28,6 @@ import android.view.*
 import android.widget.SeekBar
 import android.widget.SeekBar.OnSeekBarChangeListener
 import android.widget.TextView
-import android.widget.Toolbar
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -49,6 +45,11 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+
+// TODO: fling --> onFling "scrolls" to an unexpected position, even backwards...
+// TODO: Cache manager, SQL lite database, see what tiles have been loaded,
+// TODO: enable to load tiles for an area
+
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -86,7 +87,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
             R.id.action_home -> centerAsHome()
             R.id.action_orientation -> displayOrientation()
             R.id.action_about -> displayAbout()
-            R.id.action_setAlpha -> setAlpha()
+            R.id.action_transparency -> setAlpha()
             R.id.action_networkStatus -> displayNetworkStatus()
             else -> super.onOptionsItemSelected(item)
         }
@@ -108,15 +109,16 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         viewModel.alphaLD.observe(viewLifecycleOwner, { alpha -> binding.compass.alpha = alpha })
         viewModel.canZoomInLD.observe(viewLifecycleOwner, { canZoomIn -> binding.buttonZoomIn.isEnabled = canZoomIn })
         viewModel.canZoomOutLD.observe(viewLifecycleOwner, { canZoomOut -> binding.buttonZoomOut.isEnabled = canZoomOut })
-        viewModel.networkStatusLD.observe(viewLifecycleOwner, { status -> onNetworkStatus(status) })
+        viewModel.networkStatusLD.observe(viewLifecycleOwner, { status -> onObserveNetworkStatus(status) })
 
         createMapView(binding.map, requireContext())
         updateActionBar(resources.getString(R.string.app_name))
 
-        if (viewModel.useTracking)
-            viewModel.updateCenterToCurrentLocationAndEnableTracking()
-
         return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
     }
 
     override fun onDestroyView() {
@@ -129,9 +131,9 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         viewModel.loadSettings()
 
         initializeNetworkListener()
+        updateNetworkStatus()
         initializeHandler()
         resumeMapView()
-
 
         if (viewModel.useLocation) {
             enableLocationListener()
@@ -140,6 +142,10 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
             initializeAccelerationSensor()
             initializeMagneticFieldSensor()
         }
+        if (viewModel.useTracking) {
+            viewModel.updateCenterToCurrentLocationAndEnableTracking()
+        }
+
     }
 
     override fun onPause() {
@@ -258,17 +264,17 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         object: ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 super.onAvailable(network)
-                viewModel.setNetworkStatus(NetworkStatus.ONLINE)
+                viewModel.setNetworkAvailable(connectivityManager, network)
             }
 
             override fun onLost(network: Network) {
                 super.onLost(network)
-                viewModel.setNetworkStatus(NetworkStatus.OFFLINE)
+                viewModel.setNetworkLost(network)
             }
 
             override fun onUnavailable() {
                 super.onUnavailable()
-                viewModel.setNetworkStatus(NetworkStatus.OFFLINE)
+                viewModel.setNetworkUnavailable()
             }
         }
     }
@@ -276,25 +282,35 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
     private val toolbar: androidx.appcompat.widget.Toolbar
         get() = requireActivity().findViewById(R.id.toolbar)
 
-    private fun networkStatusIconId(status: NetworkStatus): Int =
-        when (status) {
-            NetworkStatus.ACTIVE -> R.drawable.online
-            NetworkStatus.ONLINE -> R.drawable.online
-            NetworkStatus.OFFLINE -> R.drawable.offline
-        }
+    private fun onObserveNetworkStatus(status: NetworkStatusInfo) {
+        updateNetworkStatusIcon(toolbar.menu, status)
+    }
 
-    private fun onNetworkStatus(status: NetworkStatus) {
-        toolbar.menu.findItem(R.id.action_networkStatus)?.icon = ContextCompat.getDrawable(requireContext(), networkStatusIconId(status))
+    override fun onPrepareOptionsMenu(menu: Menu) {
+        super.onPrepareOptionsMenu(menu)
+        updateNetworkStatusIcon(menu, viewModel.networkStatus)
+    }
+
+    private fun updateNetworkStatusIcon(menu: Menu, status: NetworkStatusInfo) {
+        val iconId = status.iconId
+        val icon = ContextCompat.getDrawable(requireContext(), iconId)
+        menu.findItem(R.id.action_networkStatus)?.icon = icon
+    }
+
+    private fun updateNetworkStatus() {
+        val network = connectivityManager.activeNetwork
+        if (network == null) {
+            viewModel.setNetworkUnavailable()
+        } else {
+            viewModel.setNetworkAvailable(connectivityManager, network)
+        }
     }
 
     private fun displayNetworkStatus(): Boolean {
         viewModel.networkStatusLD.value?.also {
-            val message = when (it) {
-                NetworkStatus.ACTIVE -> "Active"
-                NetworkStatus.ONLINE -> "Online"
-                NetworkStatus.OFFLINE -> "Offline"
-            }
-            showSnackbar(message)
+            val message = it.toString()
+
+            displayMessage(it.toString())
         }
         return true
     }
@@ -550,14 +566,6 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
     private fun getColor(resId: Int): Int =
         ContextCompat.getColor(requireContext(), resId)
 
-    private fun showSnackbar(message: String) {
-        Snackbar.make(requireView(), message, Snackbar.LENGTH_LONG)
-            .setBackgroundTint(getColor(R.color.colorAccent))
-            .setTextColor(getColor(android.R.color.white))
-            .show()
-    }
-
-
     private fun displayMessage(message: String): Boolean {
         Snackbar.make(requireView(), message, Snackbar.LENGTH_INDEFINITE).also {
             it.setAction(R.string.label_close) { _ -> it.dismiss() }
@@ -568,6 +576,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
             it.view.findViewById<TextView>(com.google.android.material.R.id.snackbar_text).maxLines = 4
             it.show()
         }
+
         return true
     }
 
@@ -595,6 +604,34 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         binding.title.text = resources.getString(R.string.label_zoom_level_with_parameter, zoomLevel)
     }
 
+    /*
+        TODO: Solve the hen-and-egg-issue for scrolling
+
+        a) Scroll or Fling on Screen (updating map.center internally)
+            --> "onScroll" listener
+            --> get map.center
+            --> display the current center coordinates
+            --> update viewModel.center liveData
+            --> observe liveData changes
+            --> ... update map.center (see b)
+
+        b) Press button home / current location
+            --> update viewModel.center liveData
+            --> observe liveData changes
+            --> set map.center
+            --> scroll to center
+
+        When flinging, the liveData changes may be raised after the map.center had been changed already, so that the map.center is updated wrongly.
+        This causes ugly "jumps" of the screen.
+
+        Requirements:
+        1) scroll / fling --> update subtitle an display coordinates of the center
+        2) buttonHome.setOnClickListener { viewModel.updateCenterAndDisableTracking(viewModel.home) }
+        3) buttonTarget.setOnClickListener { viewModel.updateCenterToCurrentLocationAndEnableTracking() }
+        4) location change and tracking enabled -->  repository.setCurrentLocationMoveCenter(newCurrentLocation)
+        5) location change and tracking disabled --> repository.setCurrentLocationKeepCenter(newCurrentLocation)
+
+     */
     private fun onObserveCenter(center: Position) {
         setCenter(center)
         setActionBarSubtitle(center)
@@ -611,7 +648,6 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
             binding.map.controller.setCenter(center.toGeoPoint())
         }
     }
-
 
     private fun reset(): Boolean {
         viewModel.reset()

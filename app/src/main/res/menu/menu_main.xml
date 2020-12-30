@@ -16,9 +16,9 @@
         />
 
     <item
-        android:id="@+id/action_setAlpha"
+        android:id="@+id/action_transparency"
         android:orderInCategory="170"
-        android:title="@string/action_set_alpha"
+        android:title="@string/action_transparency"
         android:icon="@drawable/alpha"
         app:showAsAction="ifRoom"
         />

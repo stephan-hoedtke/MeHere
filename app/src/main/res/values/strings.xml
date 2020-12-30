@@ -32,6 +32,6 @@
     <string name="location_tracking_title">Tracking</string>
     <string name="location_tracking_summary_on">Automatically update map position</string>
     <string name="location_tracking_summary_off">Do not update map position automatically</string>
-    <string name="action_set_alpha">Transparency</string>
+    <string name="action_transparency">Transparency</string>
     <string name="action_network">Network</string>
 </resources>
