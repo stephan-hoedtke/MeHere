@@ -102,9 +102,8 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         binding.buttonTarget.setOnClickListener { viewModel.updateCenterToCurrentLocationAndEnableTracking() }
 
         viewModel.northPointerLD.observe(viewLifecycleOwner, { angle -> onObserveRotation(angle) })
-        viewModel.currentLocationLD.observe(viewLifecycleOwner, { location -> onObserveCurrentLocation(location) })
+        viewModel.positionLD.observe(viewLifecycleOwner, { position -> onObservePosition(position) })
         viewModel.homeLD.observe(viewLifecycleOwner, { location -> onObserveHome(location) })
-        viewModel.centerLD.observe(viewLifecycleOwner, { center -> onObserveCenter(center) })
         viewModel.zoomLD.observe(viewLifecycleOwner, { zoomLevel -> onObserveZoom(zoomLevel) })
         viewModel.alphaLD.observe(viewLifecycleOwner, { alpha -> binding.compass.alpha = alpha })
         viewModel.canZoomInLD.observe(viewLifecycleOwner, { canZoomIn -> binding.buttonZoomIn.isEnabled = canZoomIn })
@@ -388,7 +387,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
     private val mapListener by lazy {
         object : MapListener {
             override fun onScroll(event: ScrollEvent): Boolean {
-                viewModel.updateCenter( binding.map.mapCenter)
+                viewModel.updateCenterOnScroll( binding.map.mapCenter)
                 return true
             }
 
@@ -410,7 +409,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
     }
 
     override fun onLocationChanged(location: Location) {
-        viewModel.updateCurrentLocation(location)
+        viewModel.updateCurrentLocationOnLocationChanged(location)
     }
 
     override fun onStatusChanged(provider: String, status: Int, parameters: Bundle?) {
@@ -466,12 +465,31 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         binding.compass.rotation = angle.toFloat()
     }
 
-    private fun onObserveCurrentLocation(position: Position) {
-        setLocationMarker(position)
+    private fun onObserveZoom(zoomLevel: Double) {
+        if (binding.map.zoomLevelDouble != zoomLevel) {
+            binding.map.controller.setZoom(zoomLevel)
+        }
+        binding.title.text = resources.getString(R.string.label_zoom_level_with_parameter, zoomLevel)
+    }
+
+    private fun onObservePosition(position: Repository.MyPosition) {
+        setLocationMarker(position.currentLocation)
+        setActionBarSubtitle(position.center)
+        setMapCenterConditionally(position)
     }
 
     private fun onObserveHome(home: Position) {
         setHomeMarker(home)
+    }
+
+    private fun setMapCenterConditionally(position: Repository.MyPosition) {
+        // Remarks:
+        // a) Do not store a reference to a GeoPoint, as the referenced object may be changed
+        // b) Only set the map center, if the change of the position was NOT caused by scrolling or flinging
+        //    Otherwise the map's fling movement will be unpredictable
+        if (position.source == Repository.MyPositionSource.MODEL && position.center.isSomewhereElse(binding.map.mapCenter)) {
+            binding.map.controller.setCenter(position.center.toGeoPoint())
+        }
     }
 
     private fun setActionBarSubtitle(center: Position) {
@@ -597,56 +615,9 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         return null
     }
 
-    private fun onObserveZoom(zoomLevel: Double) {
-        if (binding.map.zoomLevelDouble != zoomLevel) {
-            binding.map.controller.setZoom(zoomLevel)
-        }
-        binding.title.text = resources.getString(R.string.label_zoom_level_with_parameter, zoomLevel)
-    }
-
-    /*
-        TODO: Solve the hen-and-egg-issue for scrolling
-
-        a) Scroll or Fling on Screen (updating map.center internally)
-            --> "onScroll" listener
-            --> get map.center
-            --> display the current center coordinates
-            --> update viewModel.center liveData
-            --> observe liveData changes
-            --> ... update map.center (see b)
-
-        b) Press button home / current location
-            --> update viewModel.center liveData
-            --> observe liveData changes
-            --> set map.center
-            --> scroll to center
-
-        When flinging, the liveData changes may be raised after the map.center had been changed already, so that the map.center is updated wrongly.
-        This causes ugly "jumps" of the screen.
-
-        Requirements:
-        1) scroll / fling --> update subtitle an display coordinates of the center
-        2) buttonHome.setOnClickListener { viewModel.updateCenterAndDisableTracking(viewModel.home) }
-        3) buttonTarget.setOnClickListener { viewModel.updateCenterToCurrentLocationAndEnableTracking() }
-        4) location change and tracking enabled -->  repository.setCurrentLocationMoveCenter(newCurrentLocation)
-        5) location change and tracking disabled --> repository.setCurrentLocationKeepCenter(newCurrentLocation)
-
-     */
-    private fun onObserveCenter(center: Position) {
-        setCenter(center)
-        setActionBarSubtitle(center)
-    }
-
     private fun openSettings(): Boolean {
         findNavController().navigate(R.id.action_global_SettingsFragment)
         return true
-    }
-
-    private fun setCenter(center: Position) {
-        // Do not store a reference to a GeoPoint, as the referenced object may be changed
-        if (center.isSomewhereElse(binding.map.mapCenter)) {
-            binding.map.controller.setCenter(center.toGeoPoint())
-        }
     }
 
     private fun reset(): Boolean {

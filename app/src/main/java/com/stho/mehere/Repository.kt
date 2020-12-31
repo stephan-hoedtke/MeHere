@@ -8,48 +8,49 @@ import androidx.preference.PreferenceManager
 
 class Repository {
 
-    internal class MyPosition(val currentLocation: Position, val center: Position) {
+    enum class MyPositionSource {
+        SCROLLING,
+        MODEL,
+    }
+
+    internal class MyPosition(val currentLocation: Position, val center: Position, val source: MyPositionSource) {
 
         internal val isSomewhereElse
             get() = currentLocation.isSomewhereElse(center)
 
-        internal fun isSomewhereElse(newLocation: Position, newCenter: Position): Boolean {
-            return currentLocation.isSomewhereElse(newLocation) || center.isSomewhereElse(newCenter)
-        }
+        internal fun isSomewhereElse(newLocation: Position, newCenter: Position): Boolean =
+            currentLocation.isSomewhereElse(newLocation) || center.isSomewhereElse(newCenter)
     }
 
-    private val locationLiveData = MutableLiveData<MyPosition>()
+    private val positionLiveData = MutableLiveData<MyPosition>()
     private val zoomLiveData = MutableLiveData<Double>()
 
     init {
-        locationLiveData.value = MyPosition(defaultLocationBerlinBuch, defaultLocationBerlinBuch)
+        positionLiveData.value = MyPosition(defaultLocationBerlinBuch, defaultLocationBerlinBuch, MyPositionSource.MODEL)
         zoomLiveData.value = defaultZoom
     }
 
-    internal val locationLD: LiveData<MyPosition>
-        get() = locationLiveData
+    internal val positionLD: LiveData<MyPosition>
+        get() = positionLiveData
 
     internal val currentLocation: Position
-        get() = locationLiveData.value!!.currentLocation
+        get() = positionLiveData.value!!.currentLocation
 
     internal val center: Position
-        get() = locationLiveData.value!!.center
+        get() = positionLiveData.value!!.center
 
-    internal fun setCurrentLocationMoveCenter(newCurrentLocation: Position) {
-        setLocation(newCurrentLocation, newCurrentLocation)
-    }
+    internal fun setCurrentLocationMoveCenter(newCurrentLocation: Position, source: MyPositionSource) =
+        setLocation(newCurrentLocation, newCurrentLocation, source)
 
-    internal fun setCurrentLocationKeepCenter(newCurrentLocation: Position) {
-        setLocation(newCurrentLocation, center)
-    }
+    internal fun setCurrentLocationKeepCenter(newCurrentLocation: Position, source: MyPositionSource) =
+        setLocation(newCurrentLocation, center, source)
 
-    internal fun setCenterKeepCurrentLocation(newCenter: Position) {
-        setLocation(currentLocation, newCenter)
-    }
+    internal fun setCenterKeepCurrentLocation(newCenter: Position, source: MyPositionSource) =
+        setLocation(currentLocation, newCenter, source)
 
-    private fun setLocation(newCurrentLocation: Position, newCenter: Position) {
-        if (locationLiveData.value!!.isSomewhereElse(newCurrentLocation, newCenter)) {
-            locationLiveData.postValue(MyPosition(newCurrentLocation, newCenter))
+    private fun setLocation(newCurrentLocation: Position, newCenter: Position, source: MyPositionSource) {
+        if (positionLiveData.value!!.isSomewhereElse(newCurrentLocation, newCenter)) {
+            positionLiveData.postValue(MyPosition(newCurrentLocation, newCenter, source))
         }
     }
 
@@ -70,7 +71,7 @@ class Repository {
             val longitude =  it.getDouble(centerLongitudeKey, defaultLongitude)
             val altitude = it.getDouble(centerAltitudeKey, defaultAltitude)
             val zoomLevel =  it.getDouble(zoomKey, defaultZoom)
-            locationLiveData.value = MyPosition(currentLocation, center = Position(latitude, longitude, altitude))
+            positionLiveData.value = MyPosition(currentLocation, center = Position(latitude, longitude, altitude), source = MyPositionSource.MODEL)
             zoomLiveData.value = zoomLevel
         }
     }
@@ -89,7 +90,7 @@ class Repository {
     }
 
     internal fun touch() {
-        locationLiveData.postValue(MyPosition(currentLocation, center))
+        positionLiveData.postValue(MyPosition(currentLocation, center, MyPositionSource.MODEL))
     }
 
     companion object {
@@ -131,9 +132,8 @@ class Repository {
 
 // Extensions used above:
 
-private fun SharedPreferences.getDouble(key: String, defaultValue: Double): Double {
-    return this.getFloat(key, defaultValue.toFloat()).toDouble()
-}
+private fun SharedPreferences.getDouble(key: String, defaultValue: Double): Double =
+    this.getFloat(key, defaultValue.toFloat()).toDouble()
 
 private fun SharedPreferences.Editor.putDouble(key: String, value: Double) {
     this.putFloat(key, value.toFloat())

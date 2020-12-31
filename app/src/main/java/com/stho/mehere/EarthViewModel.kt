@@ -4,14 +4,12 @@ import android.app.Application
 import android.location.Location
 import android.net.ConnectivityManager
 import android.net.Network
-import android.net.NetworkCapabilities
 import android.os.Handler
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Transformations
 import org.osmdroid.api.IGeoPoint
-import java.lang.StringBuilder
 
 
 class EarthViewModel(application: Application, private val repository: Repository, private val settings: Settings) : AndroidViewModel(application) {
@@ -31,14 +29,8 @@ class EarthViewModel(application: Application, private val repository: Repositor
         alphaLiveData.value = settings.alpha
     }
 
-    internal val locationLD: LiveData<Repository.MyPosition>
-        get() = repository.locationLD
-
-    internal val currentLocationLD: LiveData<Position>
-        get() = Transformations.map(repository.locationLD) { location -> location.currentLocation }
-
-    internal val centerLD: LiveData<Position>
-        get() = Transformations.map(repository.locationLD) { location -> location.center }
+    internal val positionLD: LiveData<Repository.MyPosition>
+        get() = repository.positionLD
 
     internal val zoomLD: LiveData<Double>
         get() = repository.zoomLD
@@ -114,37 +106,32 @@ class EarthViewModel(application: Application, private val repository: Repositor
         acceleration.rotateTo(newAngle)
     }
 
-    internal fun updateCurrentLocation(location: Location) {
-        updateCurrentLocation(Position(location))
+    internal fun updateCurrentLocationOnLocationChanged(location: Location) {
+        updateCurrentLocationOnLocationChanged(Position(location))
     }
 
-    private fun updateCurrentLocation(newCurrentLocation: Position) {
+    private fun updateCurrentLocationOnLocationChanged(newCurrentLocation: Position) {
         if (repository.currentLocation.isSomewhereElse(newCurrentLocation)) {
             if (useTracking) {
-                repository.setCurrentLocationMoveCenter(newCurrentLocation)
+                repository.setCurrentLocationMoveCenter(newCurrentLocation, Repository.MyPositionSource.MODEL)
             } else {
-                repository.setCurrentLocationKeepCenter(newCurrentLocation)
+                repository.setCurrentLocationKeepCenter(newCurrentLocation, Repository.MyPositionSource.MODEL)
             }
         }
     }
 
-    internal fun updateCenter(point: IGeoPoint) {
-        repository.setCenterKeepCurrentLocation(
-            Position(
-                point.latitude,
-                point.longitude,
-                center.altitude
-            )
-        )
+    internal fun updateCenterOnScroll(point: IGeoPoint) {
+        val position = Position(point.latitude, point.longitude, center.altitude)
+        repository.setCenterKeepCurrentLocation(position, Repository.MyPositionSource.SCROLLING)
     }
 
     internal fun updateCenterAndDisableTracking(newCenter: Position) {
         disableTracking()
-        repository.setCenterKeepCurrentLocation(newCenter)
+        repository.setCenterKeepCurrentLocation(newCenter, Repository.MyPositionSource.MODEL)
     }
 
     internal fun updateCenterToCurrentLocationAndEnableTracking() {
-        repository.setCurrentLocationMoveCenter(currentLocation)
+        repository.setCurrentLocationMoveCenter(currentLocation, Repository.MyPositionSource.MODEL)
         enableTrackingDelayed()
     }
 
@@ -175,7 +162,7 @@ class EarthViewModel(application: Application, private val repository: Repositor
 
     internal fun reset() {
         repository.zoom = Repository.defaultZoom
-        repository.setCurrentLocationMoveCenter(Repository.defaultLocationBerlinBuch)
+        repository.setCurrentLocationMoveCenter(Repository.defaultLocationBerlinBuch, Repository.MyPositionSource.MODEL)
         northPointerLiveData.postValue(0.0)
     }
 
