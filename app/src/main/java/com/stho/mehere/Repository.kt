@@ -5,52 +5,89 @@ import android.content.SharedPreferences
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.preference.PreferenceManager
+import org.osmdroid.api.IGeoPoint
+import org.osmdroid.util.GeoPoint
 
 class Repository {
 
-    enum class MyPositionSource {
-        SCROLLING,
-        MODEL,
+    internal class Center(val center: Position, val source: Source) {
+
+        enum class Source {
+            SCROLLING,
+            MODEL,
+        }
+
+        internal fun isSomewhereElse(point: IGeoPoint): Boolean =
+            center.isSomewhereElse(point)
+
+        internal fun toGeoPoint(): GeoPoint =
+            center.toGeoPoint()
     }
 
-    internal class MyPosition(val currentLocation: Position, val center: Position, val source: MyPositionSource) {
-
-        internal val isSomewhereElse
-            get() = currentLocation.isSomewhereElse(center)
-
-        internal fun isSomewhereElse(newLocation: Position, newCenter: Position): Boolean =
-            currentLocation.isSomewhereElse(newLocation) || center.isSomewhereElse(newCenter)
-    }
-
-    private val positionLiveData = MutableLiveData<MyPosition>()
+    private val currentPositionLiveData = MutableLiveData<Position>()
+    private val centerLiveData = MutableLiveData<Center>()
     private val zoomLiveData = MutableLiveData<Double>()
 
     init {
-        positionLiveData.value = MyPosition(defaultLocationBerlinBuch, defaultLocationBerlinBuch, MyPositionSource.MODEL)
+        currentPositionLiveData.value = defaultLocationBerlinBuch
+        centerLiveData.postValue(Center(defaultLocationBerlinBuch, Center.Source.MODEL))
         zoomLiveData.value = defaultZoom
     }
 
-    internal val positionLD: LiveData<MyPosition>
-        get() = positionLiveData
+    internal val currentPositionLD: LiveData<Position>
+        get() = currentPositionLiveData
 
-    internal val currentLocation: Position
-        get() = positionLiveData.value!!.currentLocation
+    internal val currentPosition: Position
+        get() = currentPositionLiveData.value ?: defaultLocationBerlinBuch
+
+    internal val centerLD: LiveData<Center>
+        get() = centerLiveData
 
     internal val center: Position
-        get() = positionLiveData.value!!.center
+        get() = centerLiveData.value!!.center
 
-    internal fun setCurrentLocationMoveCenter(newCurrentLocation: Position, source: MyPositionSource) =
-        setLocation(newCurrentLocation, newCurrentLocation, source)
+    internal fun setCurrentLocationMoveCenter(newCurrentLocation: Position) {
+        if (currentPosition.isSomewhereElse(newCurrentLocation)) {
+            currentPositionLiveData.postValue(newCurrentLocation)
+            centerLiveData.postValue(Center(newCurrentLocation, Center.Source.MODEL))
+        }
+    }
 
-    internal fun setCurrentLocationKeepCenter(newCurrentLocation: Position, source: MyPositionSource) =
-        setLocation(newCurrentLocation, center, source)
+    /*
+        Called when the map was scrolled (scroll or fling)
+        - map: OnScroll
+        - update center live data
+        - fragment observes live data
+        --> to update the subtitle and display the coordinates of the new map center
+        Mind:
+        a) the map center must not be changed, or finging would not work properly
+        b) location tracking must be disabled when the map is touched
+     */
+    internal fun onScrollSetNewCenter(point: IGeoPoint) {
+        if (center.isSomewhereElse(point)) {
+            val position = Position(point.latitude, point.longitude, center.altitude)
+            val center = Center(position, Center.Source.SCROLLING)
+            centerLiveData.postValue(center)
+        }
+    }
 
-    internal fun setCenterKeepCurrentLocation(newCenter: Position, source: MyPositionSource) =
-        setLocation(currentLocation, newCenter, source)
+    /*
+        Called in reaction on a button click (set home, set current location) or when tracking the current geo location
+        - update center live data
+        - fragment observes live data
+        --> to update the subtitle and display the coordinates of the new map center
+        --> to change the map center
+     */
+    internal fun setNewCenter(newCenter: Position) {
+        if (center.isSomewhereElse(newCenter)) {
+            val center = Center(newCenter, Center.Source.MODEL)
+            centerLiveData.postValue(center)
+        }
+    }
 
-    private fun setLocation(newCurrentLocation: Position, newCenter: Position, source: MyPositionSource) {
-        if (positionLiveData.value!!.isSomewhereElse(newCurrentLocation, newCenter)) {
-            positionLiveData.postValue(MyPosition(newCurrentLocation, newCenter, source))
+    internal fun setCurrentLocation(newCurrentLocation: Position) {
+        if (currentPosition.isSomewhereElse(newCurrentLocation)) {
+            currentPositionLiveData.postValue(newCurrentLocation)
         }
     }
 
@@ -58,7 +95,7 @@ class Repository {
         get() = zoomLiveData
 
     internal var zoom: Double
-        get() = zoomLiveData.value!!
+        get() = zoomLiveData.value ?: defaultZoom
         set(value) {
             if (zoomLiveData.value != value) {
                 zoomLiveData.postValue(value)
@@ -71,14 +108,15 @@ class Repository {
             val longitude =  it.getDouble(centerLongitudeKey, defaultLongitude)
             val altitude = it.getDouble(centerAltitudeKey, defaultAltitude)
             val zoomLevel =  it.getDouble(zoomKey, defaultZoom)
-            positionLiveData.value = MyPosition(currentLocation, center = Position(latitude, longitude, altitude), source = MyPositionSource.MODEL)
+            currentPositionLiveData.value = currentPosition
+            centerLiveData.value = Center(Position(latitude, longitude, altitude), source = Center.Source.MODEL)
             zoomLiveData.value = zoomLevel
         }
     }
 
     internal fun save(context: Context) {
         val editor = PreferenceManager.getDefaultSharedPreferences(context.applicationContext).edit()
-        currentLocation.also {
+        currentPosition.also {
             editor.putDouble(centerLatitudeKey, it.latitude)
             editor.putDouble(centerLongitudeKey, it.longitude)
             editor.putDouble(centerAltitudeKey, it.altitude)
@@ -90,7 +128,7 @@ class Repository {
     }
 
     internal fun touch() {
-        positionLiveData.postValue(MyPosition(currentLocation, center, MyPositionSource.MODEL))
+        currentPositionLiveData.postValue(currentPosition)
     }
 
     companion object {

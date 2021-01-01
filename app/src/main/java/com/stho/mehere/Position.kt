@@ -10,39 +10,15 @@ class Position internal constructor(val latitude: Double, val longitude: Double,
 
     constructor(location: Location) : this(location.latitude, location.longitude, location.altitude)
 
-    internal fun toLocation(): Location {
-        return Location(LocationManager.GPS_PROVIDER).also {
-            it.latitude = latitude
-            it.longitude = longitude
-            it.altitude = altitude
-        }
-    }
+    internal fun toGeoPoint(): GeoPoint =
+        GeoPoint(latitude, longitude, altitude)
 
-    internal fun toGeoPoint(): GeoPoint {
-        return GeoPoint(latitude, longitude, altitude)
-    }
+    internal fun isSomewhereElse(position: Position): Boolean =
+        latitude.isDifferentFrom(position.latitude) || longitude.isDifferentFrom(position.longitude) || altitude.isDifferentFrom(position.altitude)
 
-    internal fun isSomewhereElse(position: Position): Boolean {
-        return isSomewhereElse(position.latitude, position.longitude, position.altitude)
-    }
-
-    internal fun isSomewhereElse(location: Location): Boolean {
-        return isSomewhereElse(location.latitude, location.longitude, location.altitude)
-    }
-
-    internal fun isSomewhereElse(point: IGeoPoint): Boolean {
-        return isSomewhereElse(point.latitude, point.longitude)
-    }
-
-    private fun isSomewhereElse(latitude: Double, longitude: Double, altitude: Double): Boolean {
-        return isDifferent(this.latitude, latitude) || isDifferent(this.longitude, longitude) || isDifferent(this.altitude, altitude)
-    }
-
-    private fun isSomewhereElse(latitude: Double, longitude: Double): Boolean {
-        return isDifferent(this.latitude, latitude) || isDifferent(this.longitude, longitude)
-    }
-
-    private fun isDifferent(a: Double, b: Double): Boolean {
-        return abs(a - b) > 0.0000000001
-    }
+    internal fun isSomewhereElse(point: IGeoPoint): Boolean =
+        latitude.isDifferentFrom(point.latitude) || longitude.isDifferentFrom(point.longitude)
 }
+
+private fun Double.isDifferentFrom(x: Double): Boolean =
+    abs(x - this) > 0.000000000001

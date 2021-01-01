@@ -14,13 +14,13 @@ import org.osmdroid.api.IGeoPoint
 
 class EarthViewModel(application: Application, private val repository: Repository, private val settings: Settings) : AndroidViewModel(application) {
 
-    private var isTrackingEnabled = true
     private val acceleration: Acceleration = Acceleration()
     private val lowPassFilter: LowPassFilter = LowPassFilter()
     private val northPointerLiveData = MutableLiveData<Double>()
     private val homeLiveData = MutableLiveData<Position>()
     private val networkStatusLiveData = MutableLiveData<NetworkStatusInfo>()
     private val alphaLiveData = MutableLiveData<Float>()
+    private var isTrackingEnabled: Boolean = false
 
     init {
         networkStatusLiveData.value = NetworkStatusInfo()
@@ -29,8 +29,11 @@ class EarthViewModel(application: Application, private val repository: Repositor
         alphaLiveData.value = settings.alpha
     }
 
-    internal val positionLD: LiveData<Repository.MyPosition>
-        get() = repository.positionLD
+    internal val currentPositionLD: LiveData<Position>
+        get() = repository.currentPositionLD
+
+    internal val centerLD: LiveData<Repository.Center>
+        get() = repository.centerLD
 
     internal val zoomLD: LiveData<Double>
         get() = repository.zoomLD
@@ -54,7 +57,7 @@ class EarthViewModel(application: Application, private val repository: Repositor
         get() = networkStatusLiveData
 
     internal val currentLocation: Position
-        get() = repository.currentLocation
+        get() = repository.currentPosition
 
     internal val home: Position
         get() = settings.home
@@ -81,7 +84,7 @@ class EarthViewModel(application: Application, private val repository: Repositor
             settings.alpha = value
         }
 
-    internal fun enableTrackingDelayed() {
+    private fun enableTrackingDelayed() {
         if (!isTrackingEnabled) {
             Handler().postDelayed({
                 isTrackingEnabled = true
@@ -91,10 +94,8 @@ class EarthViewModel(application: Application, private val repository: Repositor
     }
 
     internal fun disableTracking() {
-        if (isTrackingEnabled) {
-            isTrackingEnabled = false
-            repository.touch()
-        }
+        isTrackingEnabled = false
+        repository.touch()
     }
 
     internal fun update(orientationAngles: FloatArray) {
@@ -102,37 +103,33 @@ class EarthViewModel(application: Application, private val repository: Repositor
         updateAcceleration(-Degree.fromRadian(gravity.x))
     }
 
-    private fun updateAcceleration(newAngle: Double) {
+    private fun updateAcceleration(newAngle: Double) =
         acceleration.rotateTo(newAngle)
-    }
 
-    internal fun updateCurrentLocationOnLocationChanged(location: Location) {
-        updateCurrentLocationOnLocationChanged(Position(location))
-    }
+    internal fun onLocationChanged(location: Location) =
+        onLocationChangedSetCurrentLocation(newCurrentLocation = Position(location))
 
-    private fun updateCurrentLocationOnLocationChanged(newCurrentLocation: Position) {
-        if (repository.currentLocation.isSomewhereElse(newCurrentLocation)) {
-            if (useTracking) {
-                repository.setCurrentLocationMoveCenter(newCurrentLocation, Repository.MyPositionSource.MODEL)
+    private fun onLocationChangedSetCurrentLocation(newCurrentLocation: Position) {
+        if (repository.currentPosition.isSomewhereElse(newCurrentLocation)) {
+            if (isTrackingEnabled) {
+                repository.setCurrentLocationMoveCenter(newCurrentLocation)
             } else {
-                repository.setCurrentLocationKeepCenter(newCurrentLocation, Repository.MyPositionSource.MODEL)
+                repository.setCurrentLocation(newCurrentLocation)
             }
         }
     }
 
-    internal fun updateCenterOnScroll(point: IGeoPoint) {
-        val position = Position(point.latitude, point.longitude, center.altitude)
-        repository.setCenterKeepCurrentLocation(position, Repository.MyPositionSource.SCROLLING)
-    }
+    internal fun onScrollSetNewCenter(point: IGeoPoint) =
+        repository.onScrollSetNewCenter(point)
 
     internal fun updateCenterAndDisableTracking(newCenter: Position) {
         disableTracking()
-        repository.setCenterKeepCurrentLocation(newCenter, Repository.MyPositionSource.MODEL)
+        repository.setNewCenter(newCenter)
     }
 
     internal fun updateCenterToCurrentLocationAndEnableTracking() {
-        repository.setCurrentLocationMoveCenter(currentLocation, Repository.MyPositionSource.MODEL)
         enableTrackingDelayed()
+        repository.setNewCenter(currentLocation)
     }
 
     internal fun zoomIn() {
@@ -162,7 +159,7 @@ class EarthViewModel(application: Application, private val repository: Repositor
 
     internal fun reset() {
         repository.zoom = Repository.defaultZoom
-        repository.setCurrentLocationMoveCenter(Repository.defaultLocationBerlinBuch, Repository.MyPositionSource.MODEL)
+        repository.setCurrentLocationMoveCenter(Repository.defaultLocationBerlinBuch)
         northPointerLiveData.postValue(0.0)
     }
 

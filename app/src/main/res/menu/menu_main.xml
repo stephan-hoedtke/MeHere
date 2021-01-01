@@ -27,10 +27,9 @@
         android:id="@+id/action_networkStatus"
         android:orderInCategory="130"
         android:title="@string/action_network"
-        android:icon="@drawable/offline"
+        android:icon="@drawable/network"
         app:showAsAction="ifRoom"
         />
-
 
     <item
         android:id="@+id/action_orientation"
