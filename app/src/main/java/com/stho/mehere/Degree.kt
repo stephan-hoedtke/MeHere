@@ -1,12 +1,37 @@
 package com.stho.mehere
 
 import kotlin.math.IEEErem
-import kotlin.math.PI
 
 class Degree {
     companion object {
-        fun getAngleDifference(x: Double, y: Double): Double =
-            normalizeTo180(x - y)
+
+        fun sin(degree: Double): Double {
+            return kotlin.math.sin(Math.toRadians(degree))
+        }
+
+        fun tan(degree: Double): Double {
+            return kotlin.math.tan(Math.toRadians(degree))
+        }
+
+        fun cos(degree: Double): Double {
+            return kotlin.math.cos(Math.toRadians(degree))
+        }
+
+        fun arcTan2(y: Double, x: Double): Double {
+            return Math.toDegrees(kotlin.math.atan2(y, x))
+        }
+
+        fun arcTan(x: Double): Double {
+            return Math.toDegrees(kotlin.math.atan(x))
+        }
+
+        fun arcSin(x: Double): Double {
+            return Math.toDegrees(kotlin.math.asin(x))
+        }
+
+        fun arcCos(x: Double): Double {
+            return Math.toDegrees(kotlin.math.acos(x))
+        }
 
         fun normalize(degree: Double): Double =
             degree.IEEErem(360.0).let {
@@ -25,9 +50,12 @@ class Degree {
                 }
             }
 
-        fun fromRadian(radian: Double): Double =
-            radian * RADIANT_TO_DEGREE
-
-        private const val RADIANT_TO_DEGREE: Double = 180.0 / PI
+        /**
+         * difference x - y of two angles x and y in degree from -180° to 180°
+         */
+        fun difference(x: Double, y: Double): Double =
+            normalizeTo180(x - y)
     }
 }
+
+

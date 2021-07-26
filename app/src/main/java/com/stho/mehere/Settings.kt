@@ -2,8 +2,6 @@ package com.stho.mehere
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.location.Location
-import android.location.LocationManager
 import androidx.preference.PreferenceManager
 
 class Settings(context: Context) {
@@ -17,7 +15,10 @@ class Settings(context: Context) {
     internal var useTracking: Boolean = true
         private set
 
-    internal var home: Position = Repository.defaultLocationBerlinBuch
+    internal var rotateMapView: Boolean = true
+        private set
+
+    internal var home: Location = Repository.defaultLocationBerlinBuch
 
     internal var alpha: Float = 0.5f
 
@@ -30,7 +31,8 @@ class Settings(context: Context) {
             useTracking = it.getBoolean(trackingKey, true)
             useLocation = it.getBoolean(locationKey, true)
             useOrientation = it.getBoolean(orientationKey, true)
-            home = Position(
+            rotateMapView = it.getBoolean(rotateMapViewKey, true)
+            home = Location(
                 latitude = it.getStringAsDouble(homeLatitudeKey, home.latitude),
                 longitude = it.getStringAsDouble(homeLongitudeKey, home.longitude),
                 altitude = home.altitude
@@ -44,6 +46,7 @@ class Settings(context: Context) {
         editor.putBoolean(trackingKey, useTracking)
         editor.putBoolean(locationKey, useLocation)
         editor.putBoolean(orientationKey, useOrientation)
+        editor.putBoolean(rotateMapViewKey, rotateMapView)
         editor.putString(homeLatitudeKey, home.latitude.toString())
         editor.putString(homeLongitudeKey, home.longitude.toString())
         editor.putFloat(alphaKey, alpha)
@@ -55,6 +58,7 @@ class Settings(context: Context) {
         private const val trackingKey = "tracking"
         private const val locationKey = "location"
         private const val orientationKey = "orientation"
+        private const val rotateMapViewKey = "rotateMapView"
         private const val homeLatitudeKey = "homeLatitude"
         private const val homeLongitudeKey = "homeLongitude"
         private const val alphaKey = "alpha"

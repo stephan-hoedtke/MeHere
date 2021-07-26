@@ -8,25 +8,13 @@ package com.stho.mehere
 // https://developer.android.com/training/permissions/requesting
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.DialogInterface
 import android.content.pm.PackageManager
-import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
-import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.os.Bundle
-import android.os.Handler
 import android.view.*
 import android.widget.SeekBar
 import android.widget.SeekBar.OnSeekBarChangeListener
@@ -36,20 +24,21 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
 import com.google.android.material.snackbar.Snackbar
 import com.stho.mehere.databinding.FragmentEarthBinding
+import com.stho.nyota.OrientationAccelerationFilter
+import kotlinx.coroutines.delay
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
 import org.osmdroid.events.ZoomEvent
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.Polygon
 
 // TODO: fling --> onFling "scrolls" to an unexpected position, even backwards...
 // TODO: Cache manager, SQL lite database, see what tiles have been loaded,
@@ -59,27 +48,32 @@ import org.osmdroid.views.overlay.Polygon
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
  */
-class EarthFragment : Fragment(), LocationListener, SensorEventListener {
+class EarthFragment : Fragment() {
 
+    private lateinit var binding: FragmentEarthBinding
     private lateinit var viewModel: EarthViewModel
-    private lateinit var sensorManager: SensorManager
-    private lateinit var locationManager: LocationManager
     private lateinit var connectivityManager: ConnectivityManager
-    private var bindingReference: FragmentEarthBinding? = null
-    private val binding: FragmentEarthBinding get() = bindingReference!!
-    private val handler = Handler()
+    private lateinit var locationServiceListener: LocationServiceListener
+    private lateinit var orientationSensorListener: OrientationSensorListener
 
-    private val accelerometerReading = FloatArray(3)
-    private val magnetometerReading = FloatArray(3)
-    private val orientationAngles = FloatArray(3)
-    private val rotationMatrix = FloatArray(9)
+    private val locationFilter = LocationFilter()
+    private val orientationFilter = OrientationAccelerationFilter()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         viewModel = createEarthViewModel()
-        sensorManager = requireContext().getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        locationManager = requireContext().getSystemService(Context.LOCATION_SERVICE) as LocationManager
         connectivityManager = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        locationServiceListener = LocationServiceListener(requireContext(), locationFilter)
+        orientationSensorListener = OrientationSensorListener(requireContext(), orientationFilter)
+
+        lifecycleScope.launchWhenResumed {
+            while (true) {
+                viewModel.updateOrientation(orientationFilter.currentOrientation)
+                viewModel.updateLocation(locationFilter.currentLocation)
+                delay(100)
+            }
+        }
+
         requestMissingPermissions()
         setHasOptionsMenu(true)
     }
@@ -97,9 +91,8 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         }
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        bindingReference = FragmentEarthBinding.inflate(inflater, container, false)
-
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        binding = FragmentEarthBinding.inflate(inflater, container, false)
         binding.buttonZoomIn.setOnClickListener { viewModel.zoomIn() }
         binding.buttonZoomOut.setOnClickListener { viewModel.zoomOut() }
         binding.buttonHome.setOnClickListener { viewModel.updateCenterAndDisableTracking(viewModel.home) }
@@ -121,44 +114,31 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         return binding.root
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        bindingReference = null
-    }
-
     override fun onResume() {
         super.onResume()
         viewModel.loadSettings()
 
         initializeNetworkListener()
         updateNetworkStatus()
-        initializeHandler()
         resumeMapView()
 
         if (viewModel.useLocation) {
-            enableLocationListener()
+            locationServiceListener.onResume()
         }
         if (viewModel.useOrientation) {
-            initializeAccelerationSensor()
-            initializeMagneticFieldSensor()
+            orientationSensorListener.onResume()
         }
         if (viewModel.useTracking) {
             viewModel.updateCenterToCurrentLocationAndEnableTracking()
         }
-
     }
 
     override fun onPause() {
         super.onPause()
         viewModel.save()
-        disableLocationListener()
+        locationServiceListener.onPause()
+        orientationSensorListener.onPause()
         disableNetworkListener()
-        removeSensorListeners()
-        removeHandler()
         pauseMapView()
     }
 
@@ -177,7 +157,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
 
         // TODO: set alert dialog theme: https://stackoverflow.com/questions/18346920/change-the-background-color-of-a-pop-up-dialog#
 
-        dialog.setIcon(R.drawable.alpha_gray);
+        dialog.setIcon(R.drawable.alpha_gray)
         dialog.setTitle("Transparency")
         dialog.setView(seek)
 
@@ -201,67 +181,10 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         })
 
         // Button OK
-        dialog.setPositiveButton("OK", DialogInterface.OnClickListener { dialog, which -> dialog.dismiss() })
+        dialog.setPositiveButton("OK") { d, _ -> d.dismiss() }
         dialog.create()
         dialog.show()
         return true
-    }
-
-    private fun enableLocationListener() {
-        try {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0f, this)
-        } catch (ex: SecurityException) {
-            //ignore
-        }
-    }
-
-    private fun disableLocationListener() {
-        try {
-            locationManager.removeUpdates(this)
-        } catch (ex: SecurityException) {
-            //ignore
-        }
-    }
-
-    private fun initializeAccelerationSensor() {
-        val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-        if (accelerometer != null) {
-            sensorManager.registerListener(
-                this,
-                accelerometer,
-                SensorManager.SENSOR_DELAY_GAME,
-                SensorManager.SENSOR_DELAY_GAME
-            )
-        }
-    }
-
-    private fun initializeMagneticFieldSensor() {
-        val magneticField = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
-        if (magneticField != null) {
-            sensorManager.registerListener(
-                this,
-                magneticField,
-                SensorManager.SENSOR_DELAY_GAME,
-                SensorManager.SENSOR_DELAY_GAME
-            )
-        }
-    }
-
-    private fun initializeHandler() {
-        handler.postDelayed(object : Runnable {
-            override fun run() {
-                viewModel.updateNorthPointer()
-                handler.postDelayed(this, 100)
-            }
-        }, 100)
-    }
-
-    private fun removeHandler() {
-        handler.removeCallbacksAndMessages(null)
-    }
-
-    private fun removeSensorListeners() {
-        sensorManager.unregisterListener(this)
     }
 
     private val networkStatusCallback:  ConnectivityManager.NetworkCallback by lazy {
@@ -312,8 +235,6 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
 
     private fun displayNetworkStatus(): Boolean {
         viewModel.networkStatusLD.value?.also {
-            val message = it.toString()
-
             displayMessage(it.toString())
         }
         return true
@@ -404,59 +325,21 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
     }
 
     private val touchListener by lazy {
-        object : View.OnTouchListener {
-            @SuppressLint("ClickableViewAccessibility")
-            override fun onTouch(v: View, event: MotionEvent): Boolean {
-                viewModel.disableTracking()
-                return false
-            }
-        }
-    }
-
-    override fun onLocationChanged(location: Location) {
-        viewModel.onLocationChanged(location)
-    }
-
-    override fun onStatusChanged(provider: String, status: Int, parameters: Bundle?) {
-        // Ignore
-    }
-
-    override fun onProviderEnabled(provider: String) {
-        // Ignore
-    }
-
-    override fun onProviderDisabled(provider: String) {
-        // Ignore
-    }
-
-    override fun onAccuracyChanged(sensor: Sensor, value: Int) {
-        // Ignore
-    }
-
-    override fun onSensorChanged(event: SensorEvent) {
-        when (event.sensor?.type) {
-            Sensor.TYPE_ACCELEROMETER -> {
-                System.arraycopy(event.values, 0, accelerometerReading, 0, accelerometerReading.size)
-                updateOrientationAngles()
-            }
-            Sensor.TYPE_MAGNETIC_FIELD -> {
-                System.arraycopy(event.values, 0, magnetometerReading, 0, magnetometerReading.size)
-                updateOrientationAngles()
-            }
-        }
-    }
-
-    // Compute the three orientation angles based on the most recent readings from
-    // the device's accelerometer and magnetometer.
-    private fun updateOrientationAngles() {
-        if (SensorManager.getRotationMatrix(rotationMatrix, null, accelerometerReading, magnetometerReading)) {
-            SensorManager.getOrientation(rotationMatrix, orientationAngles)
-            viewModel.update(orientationAngles)
+        View.OnTouchListener { v, event ->
+            viewModel.disableTracking()
+            false
         }
     }
 
     private fun onObserveRotation(angle: Double) {
-        binding.compass.rotation = angle.toFloat()
+        onObserveRotation(angle.toFloat())
+    }
+
+    private fun onObserveRotation(angle: Float) {
+        binding.compass.rotation = angle
+        if (viewModel.rotateMapView) {
+            binding.map.setMapOrientation(angle, true)
+        }
     }
 
     private fun onObserveZoom(zoomLevel: Double) {
@@ -466,17 +349,17 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         binding.title.text = displayZoomString(zoomLevel)
     }
 
-    private fun onObserveCurrentPosition(position: Position) {
-        setLocationMarker(position)
+    private fun onObserveCurrentPosition(location: Location) {
+        setLocationMarker(location)
         // setCenterMarker(position)
     }
 
     private fun onObserveCenter(center: Repository.Center) {
-        setActionBarSubtitle(center.center)
+        setActionBarSubtitle(center.location)
         setMapCenterConditionally(center)
     }
 
-    private fun onObserveHome(home: Position) {
+    private fun onObserveHome(home: Location) {
         setHomeMarker(home)
     }
 
@@ -493,7 +376,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         }
     }
 
-    private fun setActionBarSubtitle(center: Position) {
+    private fun setActionBarSubtitle(center: Location) {
         supportActionBar?.apply {
             subtitle = displayPositionString(center)
         }
@@ -541,7 +424,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
 //        return points
 //    }
 
-    private fun setLocationMarker(position: Position) {
+    private fun setLocationMarker(location: Location) {
         var marker = findMarkerById(locationMarkerId)
         if (marker == null) {
             marker = Marker(binding.map).also {
@@ -559,24 +442,24 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
                 it.id = locationMarkerId
                 it.icon = icon
                 it.title = "Me"
-                it.position = position.toGeoPoint()
-                it.subDescription = displayPositionString(position)
+                it.position = location.toGeoPoint()
+                it.subDescription = displayPositionString(location)
                 it.setAnchor(fx, fy)
             }
             binding.map.overlays.add(marker)
             binding.map.invalidate()
         } else {
             marker.also {
-                it.position.latitude = position.latitude
-                it.position.longitude = position.longitude
-                it.subDescription = displayPositionString(position)
+                it.position.latitude = location.latitude
+                it.position.longitude = location.longitude
+                it.subDescription = displayPositionString(location)
                 it.setThisIcon(locationMarkerIcon)
             }
             binding.map.invalidate()
         }
     }
 
-    private fun setHomeMarker(home: Position) {
+    private fun setHomeMarker(home: Location) {
         var marker = findMarkerById(homeMarkerId)
         if (marker == null) {
             marker = Marker(binding.map).also {
@@ -599,12 +482,12 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
     }
 
     private fun displayOrientation(): Boolean {
+        val orientation = orientationFilter.currentOrientation
         val message = StringBuilder()
-
         message.append("Orientation: ")
-        message.append("\nO: " + orientationAngles[0])
-        message.append("\nM: " + magnetometerReading[0] + " | " + magnetometerReading[1] + " | " + magnetometerReading[2])
-
+        message.append("\nazimuth: " + orientation.azimuth)
+        message.append("\npitch: " + orientation.pitch)
+        message.append("\nroll: " + orientation.roll)
         return displayMessage(message.toString())
     }
 
@@ -624,8 +507,7 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
             it.setActionTextColor(getColor(R.color.colorPrimaryDark))
             it.duration = 23000
             it.view.findViewById<TextView>(com.google.android.material.R.id.snackbar_text).maxLines = 4
-            it.show()
-        }
+        }.show()
         return true
     }
 
@@ -633,11 +515,11 @@ class EarthFragment : Fragment(), LocationListener, SensorEventListener {
         resources.getString(R.string.label_zoom_level_with_parameter,
             zoomLevel)
 
-    private fun displayPositionString(position: Position): String =
+    private fun displayPositionString(location: Location): String =
         resources.getString(R.string.label_location_with_parameters,
-            position.latitude,
-            position.longitude,
-            position.altitude)
+            location.latitude,
+            location.longitude,
+            location.altitude)
 
     private fun findMarkerById(id: String): Marker? {
         binding.map.overlays?.forEach {

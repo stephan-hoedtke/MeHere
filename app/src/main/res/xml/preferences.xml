@@ -21,13 +21,6 @@
     <PreferenceCategory app:title="@string/location_header">
 
         <SwitchPreferenceCompat
-            app:key="orientation"
-            app:defaultValue="true"
-            app:summaryOff="@string/orientation_sensor_summary_off"
-            app:summaryOn="@string/orientation_sensor_summary_on"
-            app:title="@string/orientation_sensor_title" />
-
-        <SwitchPreferenceCompat
             app:key="location"
             app:defaultValue="true"
             app:summaryOff="@string/location_service_summary_off"
@@ -40,6 +33,24 @@
             app:summaryOff="@string/location_tracking_summary_off"
             app:summaryOn="@string/location_tracking_summary_on"
             app:title="@string/location_tracking_title" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/orientation_header">
+
+        <SwitchPreferenceCompat
+            app:key="orientation"
+            app:defaultValue="true"
+            app:summaryOff="@string/orientation_sensor_summary_off"
+            app:summaryOn="@string/orientation_sensor_summary_on"
+            app:title="@string/orientation_sensor_title" />
+
+        <SwitchPreferenceCompat
+            app:key="rotateMapView"
+            app:defaultValue="true"
+            app:summaryOff="@string/rotate_map_view_summary_off"
+            app:summaryOn="@string/rotate_map_view_summary_on"
+            app:title="@string/rotate_map_view_title" />
 
     </PreferenceCategory>
 

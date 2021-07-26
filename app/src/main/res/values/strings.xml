@@ -23,6 +23,7 @@
 
     <!-- Location Preferences -->
     <string name="location_header">Location</string>
+    <string name="orientation_header">Orientation</string>
     <string name="orientation_sensor_title">Device Orientation</string>
     <string name="orientation_sensor_summary_on">Use magnetic field sensor to show device orientation</string>
     <string name="orientation_sensor_summary_off">Do not use magnetic field sensor</string>
@@ -32,6 +33,9 @@
     <string name="location_tracking_title">Tracking</string>
     <string name="location_tracking_summary_on">Automatically update map position</string>
     <string name="location_tracking_summary_off">Do not update map position automatically</string>
+    <string name="rotate_map_view_title">Rotate map view</string>
+    <string name="rotate_map_view_summary_off">Do not rotate map view automatically</string>
+    <string name="rotate_map_view_summary_on">Automatically rotate map view</string>
     <string name="action_transparency">Transparency</string>
     <string name="action_network">Network</string>
 </resources>

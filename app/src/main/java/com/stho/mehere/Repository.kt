@@ -10,7 +10,7 @@ import org.osmdroid.util.GeoPoint
 
 class Repository {
 
-    internal class Center(val center: Position, val source: Source) {
+    internal class Center(val location: Location, val source: Source) {
 
         enum class Source {
             SCROLLING,
@@ -18,37 +18,37 @@ class Repository {
         }
 
         internal fun isSomewhereElse(point: IGeoPoint): Boolean =
-            center.isSomewhereElse(point)
+            location.isSomewhereElse(point)
 
         internal fun toGeoPoint(): GeoPoint =
-            center.toGeoPoint()
+            location.toGeoPoint()
     }
 
-    private val currentPositionLiveData = MutableLiveData<Position>()
+    private val currentLocationLiveData = MutableLiveData<Location>()
     private val centerLiveData = MutableLiveData<Center>()
     private val zoomLiveData = MutableLiveData<Double>()
 
     init {
-        currentPositionLiveData.value = defaultLocationBerlinBuch
+        currentLocationLiveData.value = defaultLocationBerlinBuch
         centerLiveData.postValue(Center(defaultLocationBerlinBuch, Center.Source.MODEL))
         zoomLiveData.value = defaultZoom
     }
 
-    internal val currentPositionLD: LiveData<Position>
-        get() = currentPositionLiveData
+    internal val currentLocationLD: LiveData<Location>
+        get() = currentLocationLiveData
 
-    internal val currentPosition: Position
-        get() = currentPositionLiveData.value ?: defaultLocationBerlinBuch
+    internal val currentLocation: Location
+        get() = currentLocationLiveData.value ?: defaultLocationBerlinBuch
 
     internal val centerLD: LiveData<Center>
         get() = centerLiveData
 
-    internal val center: Position
-        get() = centerLiveData.value!!.center
+    internal val center: Location
+        get() = centerLiveData.value?.location ?: defaultLocationBerlinBuch
 
-    internal fun setCurrentLocationMoveCenter(newCurrentLocation: Position) {
-        if (currentPosition.isSomewhereElse(newCurrentLocation)) {
-            currentPositionLiveData.postValue(newCurrentLocation)
+    internal fun setCurrentLocationMoveCenter(newCurrentLocation: Location) {
+        if (currentLocation.isSomewhereElse(newCurrentLocation)) {
+            currentLocationLiveData.postValue(newCurrentLocation)
             centerLiveData.postValue(Center(newCurrentLocation, Center.Source.MODEL))
         }
     }
@@ -65,8 +65,8 @@ class Repository {
      */
     internal fun onScrollSetNewCenter(point: IGeoPoint) {
         if (center.isSomewhereElse(point)) {
-            val position = Position(point.latitude, point.longitude, center.altitude)
-            val center = Center(position, Center.Source.SCROLLING)
+            val location = Location(point.latitude, point.longitude, center.altitude)
+            val center = Center(location, Center.Source.SCROLLING)
             centerLiveData.postValue(center)
         }
     }
@@ -78,16 +78,16 @@ class Repository {
         --> to update the subtitle and display the coordinates of the new map center
         --> to change the map center
      */
-    internal fun setNewCenter(newCenter: Position) {
+    internal fun setNewCenter(newCenter: Location) {
         if (center.isSomewhereElse(newCenter)) {
             val center = Center(newCenter, Center.Source.MODEL)
             centerLiveData.postValue(center)
         }
     }
 
-    internal fun setCurrentLocation(newCurrentLocation: Position) {
-        if (currentPosition.isSomewhereElse(newCurrentLocation)) {
-            currentPositionLiveData.postValue(newCurrentLocation)
+    internal fun setCurrentLocation(newCurrentLocation: Location) {
+        if (currentLocation.isSomewhereElse(newCurrentLocation)) {
+            currentLocationLiveData.postValue(newCurrentLocation)
         }
     }
 
@@ -108,15 +108,15 @@ class Repository {
             val longitude =  it.getDouble(centerLongitudeKey, defaultLongitude)
             val altitude = it.getDouble(centerAltitudeKey, defaultAltitude)
             val zoomLevel =  it.getDouble(zoomKey, defaultZoom)
-            currentPositionLiveData.value = currentPosition
-            centerLiveData.value = Center(Position(latitude, longitude, altitude), source = Center.Source.MODEL)
+            currentLocationLiveData.value = currentLocation
+            centerLiveData.value = Center(Location(latitude, longitude, altitude), source = Center.Source.MODEL)
             zoomLiveData.value = zoomLevel
         }
     }
 
     internal fun save(context: Context) {
         val editor = PreferenceManager.getDefaultSharedPreferences(context.applicationContext).edit()
-        currentPosition.also {
+        currentLocation.also {
             editor.putDouble(centerLatitudeKey, it.latitude)
             editor.putDouble(centerLongitudeKey, it.longitude)
             editor.putDouble(centerAltitudeKey, it.altitude)
@@ -128,7 +128,7 @@ class Repository {
     }
 
     internal fun touch() {
-        currentPositionLiveData.postValue(currentPosition)
+        currentLocationLiveData.postValue(currentLocation)
     }
 
     companion object {
@@ -143,8 +143,8 @@ class Repository {
         internal const val defaultAltitude = 90.0
         internal const val defaultZoom = 13.0
 
-        internal val defaultLocationBerlinBuch: Position by lazy {
-            Position(defaultLatitude, defaultLongitude, defaultAltitude)
+        internal val defaultLocationBerlinBuch: Location by lazy {
+            Location(defaultLatitude, defaultLongitude, defaultAltitude)
         }
 
         private var singleton: Repository? = null

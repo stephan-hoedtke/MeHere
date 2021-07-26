@@ -1,23 +1,20 @@
 package com.stho.mehere
 
 import android.app.Application
-import android.location.Location
 import android.net.ConnectivityManager
 import android.net.Network
-import android.os.Handler
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.Transformations
+import androidx.lifecycle.*
+import com.stho.nyota.sky.utilities.Orientation
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.osmdroid.api.IGeoPoint
+import kotlin.math.abs
 
 
 class EarthViewModel(application: Application, private val repository: Repository, private val settings: Settings) : AndroidViewModel(application) {
 
-    private val acceleration: Acceleration = Acceleration()
-    private val lowPassFilter: LowPassFilter = LowPassFilter()
     private val northPointerLiveData = MutableLiveData<Double>()
-    private val homeLiveData = MutableLiveData<Position>()
+    private val homeLiveData = MutableLiveData<Location>()
     private val networkStatusLiveData = MutableLiveData<NetworkStatusInfo>()
     private val alphaLiveData = MutableLiveData<Float>()
     private var isTrackingEnabled: Boolean = false
@@ -29,8 +26,8 @@ class EarthViewModel(application: Application, private val repository: Repositor
         alphaLiveData.value = settings.alpha
     }
 
-    internal val currentPositionLD: LiveData<Position>
-        get() = repository.currentPositionLD
+    internal val currentPositionLD: LiveData<Location>
+        get() = repository.currentLocationLD
 
     internal val centerLD: LiveData<Repository.Center>
         get() = repository.centerLD
@@ -47,7 +44,7 @@ class EarthViewModel(application: Application, private val repository: Repositor
     internal val canZoomOutLD: LiveData<Boolean>
         get() = Transformations.map(zoomLD) { zoomLevel -> zoomLevel > minZoom }
 
-    internal val homeLD: LiveData<Position>
+    internal val homeLD: LiveData<Location>
         get() = homeLiveData
 
     internal val alphaLD: LiveData<Float>
@@ -56,13 +53,13 @@ class EarthViewModel(application: Application, private val repository: Repositor
     internal val networkStatusLD: LiveData<NetworkStatusInfo>
         get() = networkStatusLiveData
 
-    internal val currentLocation: Position
-        get() = repository.currentPosition
+    internal val currentLocation: Location
+        get() = repository.currentLocation
 
-    internal val home: Position
+    internal val home: Location
         get() = settings.home
 
-    internal val center: Position
+    internal val center: Location
         get() = repository.center
 
     internal val zoom: Double
@@ -77,6 +74,9 @@ class EarthViewModel(application: Application, private val repository: Repositor
     internal val useTracking: Boolean
         get() = settings.useTracking && isTrackingEnabled
 
+    internal val rotateMapView: Boolean
+        get() = settings.rotateMapView
+
     internal var alpha: Float
         get() = alphaLiveData.value ?: 0.5f
         set(value) {
@@ -86,10 +86,11 @@ class EarthViewModel(application: Application, private val repository: Repositor
 
     private fun enableTrackingDelayed() {
         if (!isTrackingEnabled) {
-            Handler().postDelayed({
+            viewModelScope.launch {
+                delay(1000)
                 isTrackingEnabled = true
                 repository.touch()
-            }, 1000)
+            }
         }
     }
 
@@ -98,19 +99,11 @@ class EarthViewModel(application: Application, private val repository: Repositor
         repository.touch()
     }
 
-    internal fun update(orientationAngles: FloatArray) {
-        val gravity: Vector = lowPassFilter.setAcceleration(orientationAngles)
-        updateAcceleration(-Degree.fromRadian(gravity.x))
-    }
+    internal fun updateLocation(location: Location) =
+        onLocationChangedSetCurrentLocation(newCurrentLocation = location)
 
-    private fun updateAcceleration(newAngle: Double) =
-        acceleration.rotateTo(newAngle)
-
-    internal fun onLocationChanged(location: Location) =
-        onLocationChangedSetCurrentLocation(newCurrentLocation = Position(location))
-
-    private fun onLocationChangedSetCurrentLocation(newCurrentLocation: Position) {
-        if (repository.currentPosition.isSomewhereElse(newCurrentLocation)) {
+    private fun onLocationChangedSetCurrentLocation(newCurrentLocation: Location) {
+        if (repository.currentLocation.isSomewhereElse(newCurrentLocation)) {
             if (isTrackingEnabled) {
                 repository.setCurrentLocationMoveCenter(newCurrentLocation)
             } else {
@@ -122,7 +115,7 @@ class EarthViewModel(application: Application, private val repository: Repositor
     internal fun onScrollSetNewCenter(point: IGeoPoint) =
         repository.onScrollSetNewCenter(point)
 
-    internal fun updateCenterAndDisableTracking(newCenter: Position) {
+    internal fun updateCenterAndDisableTracking(newCenter: Location) {
         disableTracking()
         repository.setNewCenter(newCenter)
     }
@@ -133,27 +126,25 @@ class EarthViewModel(application: Application, private val repository: Repositor
     }
 
     internal fun zoomIn() {
-        val newZoom = repository.zoom + 1.0
-        if (newZoom <= maxZoom) {
-            repository.zoom = newZoom
-        }
+        updateZoom(repository.zoom + 1.0)
     }
 
     internal fun zoomOut() {
-        val newZoom = repository.zoom - 1.0
-        if (newZoom >= minZoom) {
-            repository.zoom = newZoom
-        }
+        updateZoom(repository.zoom - 1.0)
     }
 
     internal fun updateZoom(zoom: Double) {
-        repository.zoom = zoom
+        repository.zoom = zoom.coerceIn(minZoom, maxZoom)
     }
 
-    internal fun updateNorthPointer() {
-        acceleration.position.also {
-            if (northPointerLiveData.value != it)
-                northPointerLiveData.postValue(it)
+    internal fun updateOrientation(orientation: Orientation) {
+        setNorthPointer(orientation.azimuth)
+    }
+
+    private fun setNorthPointer(newValue: Double) {
+        val oldValue = northPointerLiveData.value ?: 0.0
+        if (abs(newValue - oldValue) > 0.00000001) {
+            northPointerLiveData.postValue(newValue)
         }
     }
 
@@ -163,7 +154,7 @@ class EarthViewModel(application: Application, private val repository: Repositor
         northPointerLiveData.postValue(0.0)
     }
 
-    internal fun setHome(home: Position) {
+    internal fun setHome(home: Location) {
         settings.home = home
         settings.save(getApplication())
         homeLiveData.postValue(home)
@@ -194,7 +185,6 @@ class EarthViewModel(application: Application, private val repository: Repositor
             networkStatusLiveData.postValue(it)
         }
     }
-
 
     internal fun setNetworkUnavailable() {
         networkStatus.also {
