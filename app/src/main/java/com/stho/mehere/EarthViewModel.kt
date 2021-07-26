@@ -138,7 +138,7 @@ class EarthViewModel(application: Application, private val repository: Repositor
     }
 
     internal fun updateOrientation(orientation: Orientation) {
-        setNorthPointer(orientation.azimuth)
+        setNorthPointer(-orientation.azimuth)
     }
 
     private fun setNorthPointer(newValue: Double) {
