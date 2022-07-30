@@ -8,7 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 class EarthViewModelFactory(private val application: Application, private val repository: Repository, private val settings: Settings) :
     ViewModelProvider.AndroidViewModelFactory(application) {
 
-    override fun <T : ViewModel?> create(modelClass: Class<T>): T {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
         val viewModel = when {
             modelClass.isAssignableFrom(EarthViewModel::class.java) -> EarthViewModel(application, repository, settings)
             else -> super.create(modelClass)

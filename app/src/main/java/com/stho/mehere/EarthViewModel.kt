@@ -18,6 +18,8 @@ class EarthViewModel(application: Application, private val repository: Repositor
     private val networkStatusLiveData = MutableLiveData<NetworkStatusInfo>()
     private val alphaLiveData = MutableLiveData<Float>()
     private var isTrackingEnabled: Boolean = false
+    private var showCompassLiveData = MutableLiveData<Boolean>().apply { value = true }
+    private var showCurrentPosition = MutableLiveData<Boolean>().apply { value = true }
 
     init {
         networkStatusLiveData.value = NetworkStatusInfo()
