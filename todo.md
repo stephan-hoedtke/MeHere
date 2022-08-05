@@ -58,3 +58,8 @@ Offline mode:
 ## Bugs
 Rotation: 
 - Rotation with fling
+
+Lint-Warnings
+- View.OnTouchListener -> onTouch lambda should call View#performClick when a click is detected
+- MenuProvider (deprecated: onOptionsMenu ...)
+- EarthFragment: if (marker == null) ...

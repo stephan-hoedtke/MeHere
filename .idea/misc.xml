@@ -8,10 +8,22 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="../../../../../layout/custom_preview.xml" value="0.18854166666666666" />
+        <entry key="../../../.gradle/caches/transforms-3/43d458baba9bde893adbaa7a5a48e4d4/transformed/jetified-osmdroid-android-6.1.13/res/layout/bonuspack_bubble.xml" value="0.17147922998986828" />
         <entry key="app/src/main/res/layout/activity_main.xml" value="0.1461499493414387" />
         <entry key="app/src/main/res/layout/content_main.xml" value="0.1461499493414387" />
+        <entry key="app/src/main/res/layout/drop_down_list_item.xml" value="0.15443840579710144" />
         <entry key="app/src/main/res/layout/fragment_earth.xml" value="0.1461499493414387" />
+        <entry key="app/src/main/res/layout/fragment_new_point_dialog.xml" value="0.1890625" />
+        <entry key="app/src/main/res/layout/fragment_point_dialog.xml" value="0.1" />
         <entry key="app/src/main/res/layout/marker_window.xml" value="0.1461499493414387" />
+        <entry key="app/src/main/res/layout/point_info_window.xml" value="0.55" />
+        <entry key="app/src/main/res/layout/type_list_item.xml" value="0.1890625" />
+        <entry key="app/src/main/res/menu/menu_edit_point_dialog.xml" value="0.29375" />
+        <entry key="app/src/main/res/menu/menu_main.xml" value="0.1625" />
+        <entry key="app/src/main/res/menu/menu_new_point_dialog.xml" value="0.29375" />
+        <entry key="app/src/main/res/menu/menu_point_dialog.xml" value="0.1890625" />
+        <entry key="app/src/main/res/menu/menu_types.xml" value="0.1890625" />
       </map>
     </option>
   </component>

@@ -12,8 +12,7 @@
         android:id="@+id/action_home"
         android:orderInCategory="150"
         android:title="@string/action_home"
-        app:showAsAction="never"
-        />
+        app:showAsAction="never" />
 
     <item
         android:id="@+id/action_transparency"
@@ -28,13 +27,24 @@
         android:orderInCategory="130"
         android:title="@string/action_network"
         android:icon="@drawable/network"
-        app:showAsAction="ifRoom"
-        />
+        app:showAsAction="ifRoom" />
 
     <item
         android:id="@+id/action_orientation"
         android:orderInCategory="200"
         android:title="@string/action_orientation"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_capture_mode"
+        android:orderInCategory="210"
+        android:title="@string/action_start_capture"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_capture_current_location"
+        android:orderInCategory="210"
+        android:title="@string/action_capture_current_location"
         app:showAsAction="never" />
 
     <item

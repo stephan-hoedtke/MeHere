@@ -4,9 +4,16 @@
     <string name="label_empty" />
     <string name="label_earth_fragment">Earth Fragment</string>
     <string name="label_title">Title</string>
-    <string name="label_zoom_level_with_parameter">Zoom: %1$.0f</string>
-    <string name="label_location_with_parameters">%1$.3f° %2$.3f° %3$.0fm</string>
+    <string name="label_zoom_with_parameter">Zoom: %s</string>
+    <string name="label_location_with_parameters">%s %s %s</string>
+    <string name="label_point_info_with_parameter">%s - %s</string>
+    <string name="label_points_with_parameter">Points: %d</string>
+    <string name="format_longitude">%1$.3f°</string>
+    <string name="format_latitude">%1$.3f°</string>
+    <string name="format_altitude">%1$.0fm</string>
+    <string name="format_zoom">%1$.0f</string>
     <string name="label_about_with_parameters">Me Here, Version %1$s\nCopyright © STHO\n2020</string>
+    <string name="label_new_point_info">The new point of interest will be displayed at the given location.</string>
     <string name="label_close">Close</string>
 
     <!-- Actions Menu -->
@@ -38,4 +45,11 @@
     <string name="rotate_map_view_summary_on">Automatically rotate map view</string>
     <string name="action_transparency">Transparency</string>
     <string name="action_network">Network</string>
+    <string name="action_save">SAVE</string>
+    <string name="action_delete">DELETE</string>
+    <string name="action_start_capture">Start Capture</string>
+    <string name="action_stop_capture">Stop Capture</string>
+    <string name="action_capture_current_location">Capture Here</string>
+    <string name="label_dummy">Dummy Text</string>
+    <string name="default_points">23 Points</string>
 </resources>

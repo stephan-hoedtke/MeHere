@@ -24,6 +24,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <TextView
+        android:id="@+id/points"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/default_points"
+        android:textColor="@color/colorGreen"
+        android:textStyle="bold"
+        android:layout_margin="@dimen/fab_margin"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <ImageView
         android:id="@+id/compass"
         android:layout_width="match_parent"
@@ -41,7 +52,10 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toStartOf="@id/buttonHome"
-        android:contentDescription="@string/label_empty" />
+        android:contentDescription="@string/label_empty"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?android:attr/selectableItemBackgroundBorderless" />
 
     <ImageView
         android:id="@+id/buttonHome"

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/type_track"
+        android:title="TRACK" />
+    <item android:id="@+id/type_start"
+        android:title="START" />
+    <item android:id="@+id/type_sight"
+        android:title="SIGHT" />
+</menu>

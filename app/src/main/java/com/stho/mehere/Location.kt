@@ -6,6 +6,7 @@ import org.osmdroid.util.GeoPoint
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sqrt
+import kotlinx.serialization.Serializable
 
 
 /**
@@ -16,6 +17,7 @@ import kotlin.math.sqrt
  * @param longitude in degrees
  * @param altitude in km
  */
+@Serializable
 class Location(val latitude: Double, val longitude: Double, val altitude: Double = 0.0) {
 
     override fun toString(): String =

@@ -25,4 +25,3 @@ fun EarthFragment.createEarthViewModel(): EarthViewModel {
     val viewModelFactory = EarthViewModelFactory(application, repository, settings)
     return ViewModelProvider(this, viewModelFactory).get(EarthViewModel::class.java)
 }
-

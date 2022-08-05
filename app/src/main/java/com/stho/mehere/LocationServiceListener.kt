@@ -40,7 +40,9 @@ class LocationServiceListener(context: Context, private val filter: ILocationFil
         filter.onLocationChanged(location)
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
-        // Ignored
+        // this method will never be called in Android Q and above
+        // super.onStatusChanged(provider, status, extras)
     }
 }

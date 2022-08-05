@@ -1,8 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#6200EE</color>
-    <color name="colorPrimaryDark">#3700B3</color>
+    <!-- see: https://m3.material.io/libraries/mdc-android/getting-started#appcompat-or-materialcomponents-themes -->
+    <color name="my_app_primary">#6200EE</color>
+    <color name="my_app_primary_dark">#3700B3</color>
     <color name="colorAccent">#64DDD5</color>
-    <color name="colorBackground">#000000</color>
+    <color name="my_app_background">#000000</color>
     <color name="colorGreen">#287414</color>
+    <color name="colorSignalBackground">#D66241</color>
+    <color name="my_app_secondary">#68A464</color>
+    <color name="my_app_error">#F05555</color>
+    <color name="my_app_primary_inverse">#64DDD5</color>
+    <color name="my_app_primary_container">#3700B3</color>
+    <color name="my_app_on_primary_container">#FFFFBB</color>
+    <color name="my_app_secondary_container">#3700B3</color>
+    <color name="my_app_on_secondary_container">#FFFFBB</color>
+    <color name="my_app_tertiary">#FF00FF</color>
+    <color name="my_app_on_tertiary">#FF00FF</color>
+    <color name="my_app_tertiary_container">#FF00FF</color>
+    <color name="my_app_on_tertiary_container">#FF00FF</color>
+    <color name="my_app_surface">#F0F8FF</color>
+    <color name="my_app_surface_variant">#FFFFFF</color>
+    <color name="my_app_on_surface_variant">#3700B3</color>
+    <color name="my_app_inverse_surface">#FF00FF</color>
+    <color name="my_app_inverse_on_surface">#FF00FF</color>
+    <color name="my_app_outline">#FF00FF</color>
+    <color name="my_app_error_container">#F05555</color>
+    <color name="my_app_on_error_container">#FFFFBB</color>
 </resources>
+

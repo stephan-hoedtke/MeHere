@@ -4,9 +4,11 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Transformations
 import androidx.preference.PreferenceManager
 import org.osmdroid.api.IGeoPoint
 import org.osmdroid.util.GeoPoint
+import java.util.function.BiPredicate
 
 class Repository {
 
@@ -24,15 +26,11 @@ class Repository {
             location.toGeoPoint()
     }
 
-    private val currentLocationLiveData = MutableLiveData<Location>()
-    private val centerLiveData = MutableLiveData<Center>()
-    private val zoomLiveData = MutableLiveData<Double>()
-
-    init {
-        currentLocationLiveData.value = defaultLocationBerlinBuch
-        centerLiveData.postValue(Center(defaultLocationBerlinBuch, Center.Source.MODEL))
-        zoomLiveData.value = defaultZoom
-    }
+    private val isDirtyLiveData = MutableLiveData<Boolean>().apply { value = false }
+    private val currentLocationLiveData = MutableLiveData<Location>().apply { value = defaultLocationBerlinBuch  }
+    private val centerLiveData = MutableLiveData<Center>().apply { value = defaultCenterBerlinBuch }
+    private val zoomLiveData = MutableLiveData<Double>().apply { value = defaultZoom }
+    private val pointsLiveData = MutableLiveData<MutableMap<String, PointOfInterest>>()
 
     internal val currentLocationLD: LiveData<Location>
         get() = currentLocationLiveData
@@ -53,6 +51,17 @@ class Repository {
         }
     }
 
+    internal val isDirtyLD: LiveData<Boolean>
+        get() = isDirtyLiveData
+
+    internal var isDirty: Boolean
+        get() = isDirtyLiveData.value ?: false
+        set(value) {
+            if (isDirtyLiveData.value != value) {
+                isDirtyLiveData.postValue(value)
+            }
+        }
+
     /*
         Called when the map was scrolled (scroll or fling)
         - map: OnScroll
@@ -68,6 +77,7 @@ class Repository {
             val location = Location(point.latitude, point.longitude, center.altitude)
             val center = Center(location, Center.Source.SCROLLING)
             centerLiveData.postValue(center)
+            isDirty = true
         }
     }
 
@@ -82,12 +92,14 @@ class Repository {
         if (center.isSomewhereElse(newCenter)) {
             val center = Center(newCenter, Center.Source.MODEL)
             centerLiveData.postValue(center)
+            isDirty = true
         }
     }
 
     internal fun setCurrentLocation(newCurrentLocation: Location) {
         if (currentLocation.isSomewhereElse(newCurrentLocation)) {
             currentLocationLiveData.postValue(newCurrentLocation)
+            isDirty = true
         }
     }
 
@@ -99,32 +111,53 @@ class Repository {
         set(value) {
             if (zoomLiveData.value != value) {
                 zoomLiveData.postValue(value)
+                isDirty = true
             }
         }
 
+    internal val pointsLD: LiveData<Collection<PointOfInterest>>
+        get() = Transformations.map(pointsLiveData) { map -> map.values }
+
+    internal val points: MutableMap<String, PointOfInterest>
+        get() = pointsLiveData.value ?: hashMapOf();
+
+    internal fun create(point: PointOfInterest) {
+        points[point.id] = point
+        pointsLiveData.postValue(points);
+        isDirty = true
+    }
+
+    internal fun update(id: String, point: PointOfInterest) {
+        points.replace(id, point)
+        pointsLiveData.postValue(points);
+        isDirty = true
+    }
+
+    internal fun delete(id: String) {
+        points.remove(id)
+        pointsLiveData.postValue(points)
+        isDirty = true
+    }
+
     private fun load(context: Context) {
-        PreferenceManager.getDefaultSharedPreferences(context.applicationContext).also {
-            val latitude = it.getDouble(centerLatitudeKey, defaultLatitude)
-            val longitude =  it.getDouble(centerLongitudeKey, defaultLongitude)
-            val altitude = it.getDouble(centerAltitudeKey, defaultAltitude)
-            val zoomLevel =  it.getDouble(zoomKey, defaultZoom)
+        Storage(context).also { storage ->
+            val center = storage.readCenter(currentLocation)
+            val points = storage.readPoints().map { it.id to it }.toMap().toMutableMap()
+            zoomLiveData.value = storage.readZoom(defaultZoom)
+            pointsLiveData.value = points
             currentLocationLiveData.value = currentLocation
-            centerLiveData.value = Center(Location(latitude, longitude, altitude), source = Center.Source.MODEL)
-            zoomLiveData.value = zoomLevel
+            centerLiveData.value = Center(center, source = Center.Source.MODEL)
+            isDirty = false
         }
     }
 
     internal fun save(context: Context) {
-        val editor = PreferenceManager.getDefaultSharedPreferences(context.applicationContext).edit()
-        currentLocation.also {
-            editor.putDouble(centerLatitudeKey, it.latitude)
-            editor.putDouble(centerLongitudeKey, it.longitude)
-            editor.putDouble(centerAltitudeKey, it.altitude)
+        Storage(context).also { storage ->
+            storage.writeCenter(currentLocation)
+            storage.writeZoom(zoom)
+            storage.writePoints(points.values.toList())
+            isDirty = false
         }
-        zoom.also {
-            editor.putDouble(zoomKey, it)
-        }
-        editor.apply()
     }
 
     internal fun touch() {
@@ -133,11 +166,6 @@ class Repository {
 
     companion object {
 
-        private const val centerLatitudeKey = "center.latitude"
-        private const val centerLongitudeKey = "center.longitude"
-        private const val centerAltitudeKey = "center.altitude"
-        private const val zoomKey = "zoom"
-
         internal const val defaultLatitude = 52.64511
         internal const val defaultLongitude = 13.49181
         internal const val defaultAltitude = 90.0
@@ -145,6 +173,10 @@ class Repository {
 
         internal val defaultLocationBerlinBuch: Location by lazy {
             Location(defaultLatitude, defaultLongitude, defaultAltitude)
+        }
+
+        internal val defaultCenterBerlinBuch: Center by lazy {
+            Center(defaultLocationBerlinBuch, Center.Source.MODEL)
         }
 
         private var singleton: Repository? = null
@@ -166,13 +198,4 @@ class Repository {
             }
         }
     }
-}
-
-// Extensions used above:
-
-private fun SharedPreferences.getDouble(key: String, defaultValue: Double): Double =
-    this.getFloat(key, defaultValue.toFloat()).toDouble()
-
-private fun SharedPreferences.Editor.putDouble(key: String, value: Double) {
-    this.putFloat(key, value.toFloat())
 }

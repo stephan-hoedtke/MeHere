@@ -13,22 +13,16 @@ import kotlin.math.abs
 
 class EarthViewModel(application: Application, private val repository: Repository, private val settings: Settings) : AndroidViewModel(application) {
 
-    private val northPointerLiveData = MutableLiveData<Double>()
-    private val homeLiveData = MutableLiveData<Location>()
-    private val networkStatusLiveData = MutableLiveData<NetworkStatusInfo>()
-    private val alphaLiveData = MutableLiveData<Float>()
     private var isTrackingEnabled: Boolean = false
+    private val northPointerLiveData = MutableLiveData<Double>().apply { value = 30.0 }
+    private val homeLiveData = MutableLiveData<Location>().apply { value = settings.home }
+    private val networkStatusLiveData = MutableLiveData<NetworkStatusInfo>().apply { value = NetworkStatusInfo() }
+    private val alphaLiveData = MutableLiveData<Float>().apply { value = settings.alpha }
     private var showCompassLiveData = MutableLiveData<Boolean>().apply { value = true }
-    private var showCurrentPosition = MutableLiveData<Boolean>().apply { value = true }
+    private var showCurrentLocationLiveData = MutableLiveData<Boolean>().apply { value = true }
+    private val captureModeLiveData = MutableLiveData<CaptureMode>().apply { value = CaptureMode.NORMAL }
 
-    init {
-        networkStatusLiveData.value = NetworkStatusInfo()
-        northPointerLiveData.value = 30.0
-        homeLiveData.value = settings.home
-        alphaLiveData.value = settings.alpha
-    }
-
-    internal val currentPositionLD: LiveData<Location>
+    internal val currentLocationLD: LiveData<Location>
         get() = repository.currentLocationLD
 
     internal val centerLD: LiveData<Repository.Center>
@@ -54,6 +48,9 @@ class EarthViewModel(application: Application, private val repository: Repositor
 
     internal val networkStatusLD: LiveData<NetworkStatusInfo>
         get() = networkStatusLiveData
+
+    internal val pointsLD: LiveData<Collection<PointOfInterest>>
+        get() = repository.pointsLD
 
     internal val currentLocation: Location
         get() = repository.currentLocation
@@ -84,6 +81,34 @@ class EarthViewModel(application: Application, private val repository: Repositor
         set(value) {
             alphaLiveData.postValue(value)
             settings.alpha = value
+        }
+
+    internal val captureModeLD: LiveData<CaptureMode>
+        get() = captureModeLiveData
+
+    internal var captureMode: CaptureMode
+        get() = captureModeLiveData.value ?: CaptureMode.NORMAL
+        set(value) {
+            if (captureModeLiveData.value != value) {
+                captureModeLiveData.postValue(value)
+            }
+        }
+
+    internal fun toggleMode() {
+        captureMode = when(captureMode) {
+            CaptureMode.NORMAL -> CaptureMode.CAPTURE
+            CaptureMode.CAPTURE -> CaptureMode.NORMAL
+        }
+    }
+
+    private fun stopCapture() {
+        captureMode = CaptureMode.NORMAL
+    }
+
+    internal fun getModeTitle(captureMode: CaptureMode): Int =
+        when(captureMode) {
+            CaptureMode.NORMAL -> R.string.action_start_capture
+            CaptureMode.CAPTURE -> R.string.action_stop_capture
         }
 
     private fun enableTrackingDelayed() {
@@ -127,21 +152,18 @@ class EarthViewModel(application: Application, private val repository: Repositor
         repository.setNewCenter(currentLocation)
     }
 
-    internal fun zoomIn() {
+    internal fun zoomIn() =
         updateZoom(repository.zoom + 1.0)
-    }
 
-    internal fun zoomOut() {
+    internal fun zoomOut() =
         updateZoom(repository.zoom - 1.0)
-    }
 
     internal fun updateZoom(zoom: Double) {
         repository.zoom = zoom.coerceIn(minZoom, maxZoom)
     }
 
-    internal fun updateOrientation(orientation: Orientation) {
+    internal fun updateOrientation(orientation: Orientation) =
         setNorthPointer(-orientation.azimuth)
-    }
 
     private fun setNorthPointer(newValue: Double) {
         val oldValue = northPointerLiveData.value ?: 0.0
@@ -162,9 +184,8 @@ class EarthViewModel(application: Application, private val repository: Repositor
         homeLiveData.postValue(home)
     }
 
-    internal fun loadSettings() {
+    internal fun loadSettings() =
         settings.load(getApplication())
-    }
 
     internal fun save() {
         repository.save(getApplication())

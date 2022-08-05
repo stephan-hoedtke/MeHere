@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@color/my_app_on_secondary_container" >
+
+    <ImageView android:id="@+id/bubble_image"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:scaleType="fitCenter"
+        android:layout_margin="5dp"
+        android:src="@drawable/banner_blue"/>
+
+    <LinearLayout
+        android:layout_margin="5dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" >
+
+        <TextView android:id="@+id/bubble_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/my_app_background"
+            android:maxEms="17"
+            android:layout_gravity="left"
+            android:layout_weight="1"
+            android:text="Title" />
+
+        <TextView android:id="@+id/bubble_description"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/my_app_background"
+            android:textSize="12dp"
+            android:maxEms="17"
+            android:text="Description" />
+
+        <TextView android:id="@+id/bubble_subdescription"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/my_app_background"
+            android:textSize="10dp"
+            android:maxEms="17"
+            android:text="Address"
+            android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>

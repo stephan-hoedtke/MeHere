@@ -9,7 +9,6 @@ package com.stho.mehere
 
 import android.Manifest
 import android.content.Context
-import android.content.DialogInterface
 import android.content.pm.PackageManager
 import android.graphics.drawable.BitmapDrawable
 import android.net.ConnectivityManager
@@ -18,26 +17,30 @@ import android.os.Bundle
 import android.view.*
 import android.widget.SeekBar
 import android.widget.SeekBar.OnSeekBarChangeListener
-import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.MenuHost
+import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
-import com.google.android.material.snackbar.Snackbar
 import com.stho.mehere.databinding.FragmentEarthBinding
 import com.stho.nyota.OrientationAccelerationFilter
 import kotlinx.coroutines.delay
 import org.osmdroid.config.Configuration
+import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
 import org.osmdroid.events.ZoomEvent
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 
 // TODO: fling --> onFling "scrolls" to an unexpected position, even backwards...
@@ -73,22 +76,7 @@ class EarthFragment : Fragment() {
                 delay(100)
             }
         }
-
         requestMissingPermissions()
-        setHasOptionsMenu(true)
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_settings -> openSettings()
-            R.id.action_reset -> reset()
-            R.id.action_home -> centerAsHome()
-            R.id.action_orientation -> displayOrientation()
-            R.id.action_about -> displayAbout()
-            R.id.action_transparency -> setAlpha()
-            R.id.action_networkStatus -> displayNetworkStatus()
-            else -> super.onOptionsItemSelected(item)
-        }
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -98,20 +86,53 @@ class EarthFragment : Fragment() {
         binding.buttonHome.setOnClickListener { viewModel.updateCenterAndDisableTracking(viewModel.home) }
         binding.buttonTarget.setOnClickListener { viewModel.updateCenterToCurrentLocationAndEnableTracking() }
 
-        viewModel.northPointerLD.observe(viewLifecycleOwner, { angle -> onObserveRotation(angle) })
-        viewModel.currentPositionLD.observe(viewLifecycleOwner, { position -> onObserveCurrentPosition(position) })
-        viewModel.centerLD.observe(viewLifecycleOwner, { center -> onObserveCenter(center) })
-        viewModel.homeLD.observe(viewLifecycleOwner, { location -> onObserveHome(location) })
-        viewModel.zoomLD.observe(viewLifecycleOwner, { zoomLevel -> onObserveZoom(zoomLevel) })
-        viewModel.alphaLD.observe(viewLifecycleOwner, { alpha -> binding.compass.alpha = alpha })
-        viewModel.canZoomInLD.observe(viewLifecycleOwner, { canZoomIn -> binding.buttonZoomIn.isEnabled = canZoomIn })
-        viewModel.canZoomOutLD.observe(viewLifecycleOwner, { canZoomOut -> binding.buttonZoomOut.isEnabled = canZoomOut })
-        viewModel.networkStatusLD.observe(viewLifecycleOwner, { status -> onObserveNetworkStatus(status) })
+        viewModel.northPointerLD.observe(viewLifecycleOwner) { angle -> onObserveRotation(angle) }
+        viewModel.currentLocationLD.observe(viewLifecycleOwner) { position -> onObserveCurrentPosition(position) }
+        viewModel.centerLD.observe(viewLifecycleOwner) { center -> onObserveCenter(center) }
+        viewModel.homeLD.observe(viewLifecycleOwner) { location -> onObserveHome(location) }
+        viewModel.zoomLD.observe(viewLifecycleOwner) { zoom -> onObserveZoom(zoom) }
+        viewModel.alphaLD.observe(viewLifecycleOwner) { alpha -> binding.compass.alpha = alpha }
+        viewModel.canZoomInLD.observe(viewLifecycleOwner) { canZoomIn -> binding.buttonZoomIn.isEnabled = canZoomIn }
+        viewModel.canZoomOutLD.observe(viewLifecycleOwner) { canZoomOut -> binding.buttonZoomOut.isEnabled = canZoomOut }
+        viewModel.networkStatusLD.observe(viewLifecycleOwner) { status -> onObserveNetworkStatus(status) }
+        viewModel.captureModeLD.observe(viewLifecycleOwner) { mode -> onObserveMode(mode) }
+        viewModel.pointsLD.observe(viewLifecycleOwner) { points -> obObservePoints(points) }
 
         createMapView(binding.map, requireContext())
         updateActionBar(resources.getString(R.string.app_name))
 
         return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        configureMenu()
+    }
+
+    private fun configureMenu() {
+        val menuHost: MenuHost = requireActivity()
+
+        menuHost.addMenuProvider(object : MenuProvider {
+            override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+                updateNetworkStatusIcon(menu, viewModel.networkStatus)
+                updateModeMenuItem(menu, viewModel.captureMode)
+            }
+
+            override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+                return when (menuItem.itemId) {
+                    R.id.action_settings -> openSettings()
+                    R.id.action_reset -> reset()
+                    R.id.action_home -> centerAsHome()
+                    R.id.action_orientation -> displayOrientation()
+                    R.id.action_about -> displayAbout()
+                    R.id.action_transparency -> setAlpha()
+                    R.id.action_networkStatus -> displayNetworkStatus()
+                    R.id.action_capture_mode -> toggleCaptureMode()
+                    R.id.action_capture_current_location -> captureCurrentPosition()
+                    else -> false
+                }
+            }
+        }, viewLifecycleOwner, Lifecycle.State.RESUMED)
     }
 
     override fun onResume() {
@@ -213,11 +234,6 @@ class EarthFragment : Fragment() {
         updateNetworkStatusIcon(toolbar.menu, status)
     }
 
-    override fun onPrepareOptionsMenu(menu: Menu) {
-        super.onPrepareOptionsMenu(menu)
-        updateNetworkStatusIcon(menu, viewModel.networkStatus)
-    }
-
     private fun updateNetworkStatusIcon(menu: Menu, status: NetworkStatusInfo) {
         val iconId = status.iconId
         val icon = ContextCompat.getDrawable(requireContext(), iconId)
@@ -225,19 +241,31 @@ class EarthFragment : Fragment() {
     }
 
     private fun updateNetworkStatus() {
-        val network = connectivityManager.activeNetwork
-        if (network == null) {
+        connectivityManager.activeNetwork?.also {
+            viewModel.setNetworkAvailable(connectivityManager, it)
+        } ?: run {
             viewModel.setNetworkUnavailable()
-        } else {
-            viewModel.setNetworkAvailable(connectivityManager, network)
         }
     }
 
     private fun displayNetworkStatus(): Boolean {
         viewModel.networkStatusLD.value?.also {
-            displayMessage(it.toString())
+            showMessage(it.toString())
         }
         return true
+    }
+
+    private fun onObserveMode(captureMode: CaptureMode) {
+        updateModeMenuItem(toolbar.menu, captureMode)
+    }
+
+    private fun updateModeMenuItem(menu: Menu, captureMode: CaptureMode) {
+        menu.findItem(R.id.action_capture_mode)?.setTitle(viewModel.getModeTitle(captureMode))
+    }
+
+    private fun obObservePoints(points: Collection<PointOfInterest>) {
+        setPointMarkers(points)
+        binding.points.text = displayPointsString(points.size)
     }
 
     private fun initializeNetworkListener() {
@@ -293,7 +321,35 @@ class EarthFragment : Fragment() {
         map.setMultiTouchControls(true)
         map.setTileSource(TileSourceFactory.DEFAULT_TILE_SOURCE)
         map.isFlingEnabled = true
+        map.isTilesScaledToDpi = true // TODO: does that solve the font size issue?
+        map.overlays.add(MapEventsOverlay(object : MapEventsReceiver {
+            override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
+                p?.also {
+                    captureWhenCaptureModeIsActive(it)
+                }
+                return true
+            }
+
+            override fun longPressHelper(p: GeoPoint?): Boolean {
+                return true
+            }
+        }))
     }
+
+    private fun captureWhenCaptureModeIsActive(p: GeoPoint) {
+        if (viewModel.captureMode == CaptureMode.CAPTURE) {
+            capture(Location.fromGeoPoint(p), PointOfInterest.Type.SIGHT)
+        }
+    }
+
+    private fun captureCurrentPosition(): Boolean {
+        capture(viewModel.currentLocation, PointOfInterest.Type.TRACK)
+        return true
+    }
+
+    private fun capture(location: Location, defaultType: PointOfInterest.Type) =
+        NewPointDialogFragment.display(requireActivity(), location, defaultType)
+
 
     private fun resumeMapView() {
         binding.map.also {
@@ -342,16 +398,15 @@ class EarthFragment : Fragment() {
         }
     }
 
-    private fun onObserveZoom(zoomLevel: Double) {
-        if (binding.map.zoomLevelDouble != zoomLevel) {
-            binding.map.controller.setZoom(zoomLevel)
+    private fun onObserveZoom(zoom: Double) {
+        if (binding.map.zoomLevelDouble != zoom) {
+            binding.map.controller.setZoom(zoom)
         }
-        binding.title.text = displayZoomString(zoomLevel)
+        binding.title.text = displayZoomString(zoom)
     }
 
     private fun onObserveCurrentPosition(location: Location) {
         setLocationMarker(location)
-        // setCenterMarker(position)
     }
 
     private fun onObserveCenter(center: Repository.Center) {
@@ -382,16 +437,29 @@ class EarthFragment : Fragment() {
         }
     }
 
-    private val targetIconBlue by lazy {
+    private val blueTargetIcon by lazy {
         ContextCompat.getDrawable(requireActivity(), R.drawable.target_blue) as BitmapDrawable
     }
 
-    private val targetIconRed by lazy {
+    private val redTargetIcon by lazy {
         ContextCompat.getDrawable(requireActivity(), R.drawable.target_red) as BitmapDrawable
     }
 
+    private val blueBannerIcon by lazy {
+        ContextCompat.getDrawable(requireActivity(), R.drawable.banner_blue) as BitmapDrawable
+    }
+
+    private val redBannerIcon by lazy {
+        ContextCompat.getDrawable(requireActivity(), R.drawable.banner_red) as BitmapDrawable
+    }
+
+    private val redDotIcon by lazy {
+        ContextCompat.getDrawable(requireActivity(), R.drawable.p1) as BitmapDrawable
+    }
+
+
     private val locationMarkerIcon: BitmapDrawable
-        get() = if (viewModel.useTracking) targetIconRed else targetIconBlue
+        get() = if (viewModel.useTracking) redTargetIcon else blueTargetIcon
 
 //    private fun setCenterMarker(position: Position) {
 //        var polygon = findPolygonById(centerMarkerId)
@@ -425,9 +493,13 @@ class EarthFragment : Fragment() {
 //    }
 
     private fun setLocationMarker(location: Location) {
-        var marker = findMarkerById(locationMarkerId)
-        if (marker == null) {
-            marker = Marker(binding.map).also {
+        findMarkerById(locationMarkerId)?.also {
+            it.position.latitude = location.latitude
+            it.position.longitude = location.longitude
+            it.subDescription = displayPositionString(location)
+            it.setThisIcon(locationMarkerIcon)
+        } ?: run {
+            Marker(binding.map).also {
                 // Hack:
                 // OSMDroid version 6.1.3
                 // in Marker.java
@@ -436,48 +508,99 @@ class EarthFragment : Fragment() {
                 //      wanted offset := 0.5 * icon.bitmap.with
                 //      calculated offset := fx * icon.intrinsicWidth
                 //      --> fx = 0.5 * icon.bitmap.with / icon.intrinsicWidth
-                val icon = targetIconBlue
+                val icon = blueTargetIcon
                 val fx: Float = Marker.ANCHOR_CENTER * icon.bitmap.width / icon.intrinsicWidth
                 val fy: Float = Marker.ANCHOR_CENTER * icon.bitmap.height / icon.intrinsicHeight
                 it.id = locationMarkerId
-                it.icon = icon
                 it.title = "Me"
                 it.position = location.toGeoPoint()
                 it.subDescription = displayPositionString(location)
-                it.setAnchor(fx, fy)
+                it.setThisIcon(icon, fx, fy)
+                binding.map.overlays.add(it)
             }
-            binding.map.overlays.add(marker)
-            binding.map.invalidate()
-        } else {
-            marker.also {
-                it.position.latitude = location.latitude
-                it.position.longitude = location.longitude
-                it.subDescription = displayPositionString(location)
-                it.setThisIcon(locationMarkerIcon)
-            }
-            binding.map.invalidate()
         }
+        binding.map.invalidate()
     }
 
     private fun setHomeMarker(home: Location) {
-        var marker = findMarkerById(homeMarkerId)
-        if (marker == null) {
-            marker = Marker(binding.map).also {
+        findMarkerById(homeMarkerId)?.also {
+            it.position.latitude = home.latitude
+            it.position.longitude = home.longitude
+            it.subDescription = displayPositionString(home)
+        } ?: run {
+            Marker(binding.map).also {
                 it.id = homeMarkerId
                 it.title = "Home"
                 it.position = home.toGeoPoint()
                 it.subDescription = displayPositionString(home)
                 it.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                binding.map.overlays.add(it)
             }
-            binding.map.overlays.add(marker)
-            binding.map.invalidate()
-        } else {
-            marker.also {
-                it.position.latitude = home.latitude
-                it.position.longitude = home.longitude
-                it.subDescription = displayPositionString(home)
+        }
+        binding.map.invalidate()
+    }
+
+    private fun setPointMarkers(points: Collection<PointOfInterest>) {
+        val markers = findPointMarkers().toMutableList()
+        for (point in points) {
+            setPointMarker(point, markers)
+        }
+        clearPointMarkers(markers)
+        binding.map.invalidate()
+    }
+
+    private fun setPointMarker(point: PointOfInterest, markers: MutableList<Marker>) {
+        findMarkerById( point.id, markers)?.also {
+            it.position.latitude = point.location.latitude
+            it.position.longitude = point.location.longitude
+            it.subDescription = displayPositionString(point.location)
+            setIcon(it, point)
+            markers.remove(it)
+        } ?: run {
+            Marker(binding.map).also {
+                it.id = point.id
+                it.title = point.name.ifBlank { point.type.toString() }
+                it.position = point.location.toGeoPoint()
+                it.subDescription = displayPositionString(point.location)
+                it.infoWindow = PointMarkerInfoWindow(this, point, binding.map)
+                setIcon(it, point)
+                binding.map.overlays.add(it)
             }
-            binding.map.invalidate()
+        }
+    }
+
+    private fun setIcon(marker: Marker, point: PointOfInterest) {
+        when (point.type) {
+            PointOfInterest.Type.SIGHT -> {
+                val icon = blueBannerIcon
+                val fx: Float = 0.15f * icon.bitmap.width / icon.intrinsicWidth
+                val fy: Float = Marker.ANCHOR_BOTTOM
+                marker.setThisIcon(icon, fx, fy)
+            }
+            PointOfInterest.Type.START -> {
+                val icon = redBannerIcon
+                val fx: Float = 0.15f * icon.bitmap.width / icon.intrinsicWidth
+                val fy: Float = Marker.ANCHOR_BOTTOM
+                marker.setThisIcon(icon, fx, fy)
+            }
+            PointOfInterest.Type.TRACK -> {
+                val icon = redDotIcon
+                val fx: Float = Marker.ANCHOR_CENTER * icon.bitmap.width / icon.intrinsicWidth
+                val fy: Float = Marker.ANCHOR_CENTER * icon.bitmap.height / icon.intrinsicHeight
+                marker.setThisIcon(icon, fx, fy)
+            }
+        }
+    }
+
+    private fun findPointMarkers(): List<Marker> =
+        binding.map.overlays
+            ?.filterIsInstance<Marker>()
+            ?.filter { it.id.startsWith(PointOfInterest.PREFIX) }
+            ?: listOf()
+
+    private fun clearPointMarkers(markers: List<Marker>) {
+        markers.forEach {
+            it.remove(binding.map)
         }
     }
 
@@ -488,47 +611,36 @@ class EarthFragment : Fragment() {
         message.append("\nazimuth: " + orientation.azimuth)
         message.append("\npitch: " + orientation.pitch)
         message.append("\nroll: " + orientation.roll)
-        return displayMessage(message.toString())
+        showMessage(message.toString())
+        return true
     }
 
     private fun displayAbout(): Boolean {
         val message: String = String.format(resources.getString(R.string.label_about_with_parameters), BuildConfig.VERSION_NAME)
-        return displayMessage(message)
-    }
-
-    private fun getColor(resId: Int): Int =
-        ContextCompat.getColor(requireContext(), resId)
-
-    private fun displayMessage(message: String): Boolean {
-        Snackbar.make(requireView(), message, Snackbar.LENGTH_INDEFINITE).also {
-            it.setAction(R.string.label_close) { _ -> it.dismiss() }
-            it.setBackgroundTint(getColor(R.color.colorAccent))
-            it.setTextColor(getColor(android.R.color.white))
-            it.setActionTextColor(getColor(R.color.colorPrimaryDark))
-            it.duration = 23000
-            it.view.findViewById<TextView>(com.google.android.material.R.id.snackbar_text).maxLines = 4
-        }.show()
+        showMessage(message)
         return true
     }
 
-    private fun displayZoomString(zoomLevel: Double): String =
-        resources.getString(R.string.label_zoom_level_with_parameter,
-            zoomLevel)
+    private fun displayZoomString(zoom: Double): String =
+        resources.getString(R.string.label_zoom_with_parameter,
+            formatZoom(zoom))
 
     private fun displayPositionString(location: Location): String =
         resources.getString(R.string.label_location_with_parameters,
-            location.latitude,
-            location.longitude,
-            location.altitude)
+            formatLatitude(location),
+            formatLongitude(location),
+            formatAltitude(location))
 
-    private fun findMarkerById(id: String): Marker? {
-        binding.map.overlays?.forEach {
-            if (it is Marker && it.id == id) {
-                return it
-            }
-        }
-        return null
-    }
+    private fun displayPointsString(n: Int): String =
+        resources.getString(R.string.label_points_with_parameter, n)
+
+    private fun findMarkerById(id: String): Marker? =
+        binding.map.overlays
+            ?.filterIsInstance<Marker>()
+            ?.firstOrNull { it.id == id }
+
+    private fun findMarkerById(id: String, markers: List<Marker>): Marker? =
+        markers.firstOrNull { it.id == id }
 
 //    private fun findPolygonById(id: String): Polygon? {
 //        binding.map.overlays?.forEach {
@@ -554,6 +666,11 @@ class EarthFragment : Fragment() {
         return true
     }
 
+    private fun toggleCaptureMode(): Boolean {
+        viewModel.toggleMode()
+        return true
+    }
+
     private fun updateActionBar(title: String) {
         supportActionBar?.apply {
             this.title = title
@@ -561,6 +678,10 @@ class EarthFragment : Fragment() {
             setDisplayHomeAsUpEnabled(false)
             setHomeButtonEnabled(true)
         }
+    }
+
+    private fun showMessage(message: String) {
+        requireActivity().showMessage(requireView(), message.toString())
     }
 
     private val supportActionBar: androidx.appcompat.app.ActionBar?
@@ -578,4 +699,12 @@ private fun Marker.setThisIcon(icon: BitmapDrawable) {
     if (this.icon != icon)
         this.icon = icon
 }
+
+private fun Marker.setThisIcon(icon: BitmapDrawable, fx: Float, fy: Float) {
+    if (this.icon != icon) {
+        this.icon = icon
+        this.setAnchor(fx, fy)
+    }
+}
+
 
