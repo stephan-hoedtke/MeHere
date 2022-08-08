@@ -58,6 +58,12 @@ class EarthViewModel(application: Application, private val repository: Repositor
     internal val home: Location
         get() = settings.home
 
+    internal val useMapsForge: Boolean
+        get() = settings.useMapsForge
+
+    internal val scaleFonts: Boolean
+        get() = settings.scaleFonts
+
     internal val center: Location
         get() = repository.center
 

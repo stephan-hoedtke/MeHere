@@ -47,10 +47,25 @@
 
         <SwitchPreferenceCompat
             app:key="rotateMapView"
-            app:defaultValue="true"
+            app:defaultValue="false"
             app:summaryOff="@string/rotate_map_view_summary_off"
             app:summaryOn="@string/rotate_map_view_summary_on"
             app:title="@string/rotate_map_view_title" />
+
+        <SwitchPreferenceCompat
+            app:key="useMapsForge"
+            app:defaultValue="true"
+            app:summaryOff="Do not use MapsForge vector tiles"
+            app:summaryOn="Use MapsForge vector tiles"
+            app:title="Use MapsForge" />
+
+        <SwitchPreferenceCompat
+            app:key="scaleFonts"
+            app:defaultValue="true"
+            app:summaryOff="Keep original maps resolution"
+            app:summaryOn="Adjust maps resolution to device"
+            app:title="Scale fonts" />
+
 
     </PreferenceCategory>
 

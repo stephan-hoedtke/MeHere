@@ -54,6 +54,10 @@ API usage:
 Offline mode:
 - Loading map tiles for a certain area in advance.
 
+MapsForge
+- use mapseForge tiles for better readability:
+- https://osmdroid.github.io/osmdroid/Mapsforge.html
+- https://stackoverflow.com/questions/10883653/streetnames-openstreetmaps-more-readable-on-android
 
 ## Bugs
 Rotation: 

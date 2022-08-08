@@ -10,8 +10,8 @@
         <option name="gradleJvm" value="11" />
         <option name="modules">
           <set>
-            <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/app" />
+            <option value="/data/AndroidStudioProjects/STHO/MeHere" />
+            <option value="/data/AndroidStudioProjects/STHO/MeHere/app" />
           </set>
         </option>
       </GradleProjectSettings>

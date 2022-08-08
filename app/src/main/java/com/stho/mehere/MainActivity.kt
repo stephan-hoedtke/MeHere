@@ -13,6 +13,7 @@ import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.osmdroid.mapsforge.MapsForgeTileSource
 import java.lang.Exception
 
 class MainActivity : AppCompatActivity() {
@@ -23,11 +24,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContentView(R.layout.activity_main)
         setSupportActionBar(findViewById(R.id.toolbar))
+
         handler = Handler(Looper.getMainLooper())
         repository = Repository.requireRepository(this)
         repository.isDirtyLD.observe(this) { isDirty -> observeIsDirty(isDirty) }
+
+        // MapsForge:
+        MapsForgeTileSource.createInstance(this.application);
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

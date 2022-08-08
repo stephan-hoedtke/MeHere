@@ -31,17 +31,24 @@ import androidx.preference.PreferenceManager
 import com.stho.mehere.databinding.FragmentEarthBinding
 import com.stho.nyota.OrientationAccelerationFilter
 import kotlinx.coroutines.delay
+import org.mapsforge.map.android.rendertheme.AssetsRenderTheme
+import org.mapsforge.map.rendertheme.XmlRenderTheme
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
 import org.osmdroid.events.ZoomEvent
+import org.osmdroid.mapsforge.MapsForgeTileProvider
+import org.osmdroid.mapsforge.MapsForgeTileSource
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.tileprovider.util.SimpleRegisterReceiver
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
+import java.io.File
+
 
 // TODO: fling --> onFling "scrolls" to an unexpected position, even backwards...
 // TODO: Cache manager, SQL lite database, see what tiles have been loaded,
@@ -321,7 +328,6 @@ class EarthFragment : Fragment() {
         map.setMultiTouchControls(true)
         map.setTileSource(TileSourceFactory.DEFAULT_TILE_SOURCE)
         map.isFlingEnabled = true
-        map.isTilesScaledToDpi = true // TODO: does that solve the font size issue?
         map.overlays.add(MapEventsOverlay(object : MapEventsReceiver {
             override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
                 p?.also {
@@ -334,7 +340,48 @@ class EarthFragment : Fragment() {
                 return true
             }
         }))
+
+        if (viewModel.useMapsForge) {
+            setupMapsForge(map)
+        }
+
+        if (viewModel.scaleFonts) {
+            map.isTilesScaledToDpi = true
+        }
     }
+
+    private fun setupMapsForge(map: MapView) {
+        // see: https://osmdroid.github.io/osmdroid/Mapsforge.html
+
+        val maps: Array<File>? = null //TODO scan/prompt for map files (.map)
+        var theme: XmlRenderTheme? = null // null is ok here, uses the default rendering theme if it's not set
+
+        try {
+            // this file should be picked up by the mapsforge dependencies
+            theme = AssetsRenderTheme(requireContext(), "renderthemes/", "rendertheme-v4.xml")
+            //alternative: theme = new ExternalRenderTheme(userDefinedRenderingFile);
+        } catch (ex: Exception) {
+            ex.printStackTrace()
+        }
+
+        val fromFiles = MapsForgeTileSource.createFromFiles(maps, theme, "rendertheme-v4")
+        val forge = MapsForgeTileProvider(SimpleRegisterReceiver(requireContext()), fromFiles, null)
+
+        binding.map.tileProvider = forge
+
+        //now for a magic trick
+//since we have no idea what will be on the
+//user's device and what geographic area it is, this will attempt to center the map
+//on whatever the map data provides
+        //now for a magic trick
+//since we have no idea what will be on the
+//user's device and what geographic area it is, this will attempt to center the map
+//on whatever the map data provides
+        binding.map.post(Runnable {
+                binding.map.zoomToBoundingBox(fromFiles.boundsOsmdroid, false)
+            })
+    }
+
 
     private fun captureWhenCaptureModeIsActive(p: GeoPoint) {
         if (viewModel.captureMode == CaptureMode.CAPTURE) {
